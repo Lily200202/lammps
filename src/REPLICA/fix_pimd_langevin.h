@@ -38,6 +38,7 @@ class FixPIMDLangevin : public Fix {
   void final_integrate() override;
   void end_of_step() override;
 
+  double compute_scalar() override;
   double compute_vector(int) override;
 
  protected:
@@ -62,6 +63,25 @@ class FixPIMDLangevin : public Fix {
   double masstotal;
 
   double fixedpoint[3];    // location of dilation fixed-point
+
+  // NHC
+
+  double *eta, *eta_dot;    // chain thermostat for particles
+  double *eta_dotdot;
+  double *eta_mass;
+  double **eta_k, **eta_dot_k;
+  double **eta_dotdot_k;
+  double **eta_mass_k;
+
+  int mtchain;                 // length of chain
+  int eta_mass_flag;
+  int nc_tchain;
+  double factor_eta;
+  double drag, tdrag_factor;     // drag factor on particle thermostat
+  double t_freq;
+  double t_period;
+  double tdof;
+  double t_current, t_target, ke_target;
 
   // ring-polymer model
 
@@ -108,7 +128,7 @@ class FixPIMDLangevin : public Fix {
 
   /* Langevin integration */
 
-  double dtv, dtf, dtv2, dtv3;
+  double dtv, dtf, dtv2, dtv3, dthalf, dt4, dt8;
   double gamma, c1, c2, tau;
   double *tau_k, *c1_k, *c2_k;
   double pilescale;
@@ -119,12 +139,17 @@ class FixPIMDLangevin : public Fix {
 
   int tstat_flag;    // tstat_flat = 1 if thermostat if used
   void langevin_init();
+  void nhc_init();
   void b_step();    // integrate for dt/2 according to B part (v <- v + f * dt/2)
   void
   a_step();    // integrate for dt/2 according to A part (non-centroid mode, harmonic force between replicas)
   void qc_step();    // integrate for dt/2 for the centroid mode (x <- x + v * dt/2)
   void o_step();     // integrate for dt according to O part (O-U process, for thermostating)
   void q_step();     // integrate for dt/2 for all the beads (x <- x + v * dt/2)
+  void nhc_temp_integrate_nmpimd(); 
+  void nhc_temp_integrate_pimd();
+
+  virtual void nh_v_temp();
 
   /* Bussi-Zykova-Parrinello barostat */
 

@@ -38,7 +38,7 @@ Syntax
        *temp* value = temperature (temperature unit)
           temperature = target temperature of the thermostat
        *thermostat* values = style seed
-          style value = *PILE_L*
+          style value = *PILE_L* or *NHC*
           seed = random number generator seed
        *tau* value = thermostat damping parameter (time unit)
        *scale* value = scaling factor of the damping times of non-centroid modes of PILE_L thermostat
