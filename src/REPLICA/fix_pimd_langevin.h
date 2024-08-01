@@ -38,7 +38,7 @@ class FixPIMDLangevin : public Fix {
   void final_integrate() override;
   void end_of_step() override;
 
-  double compute_scalar() override;
+//   double compute_scalar() override;
   double compute_vector(int) override;
 
  protected:
@@ -69,19 +69,15 @@ class FixPIMDLangevin : public Fix {
   double *eta, *eta_dot;    // chain thermostat for particles
   double *eta_dotdot;
   double *eta_mass;
-  double **eta_k, **eta_dot_k;
-  double **eta_dotdot_k;
-  double **eta_mass_k;
 
   int mtchain;                 // length of chain
-  int eta_mass_flag;
   int nc_tchain;
   double factor_eta;
   double drag, tdrag_factor;     // drag factor on particle thermostat
   double t_freq;
   double t_period;
   double tdof;
-  double t_current, t_target, ke_target;
+  double t_current, ke_target;
 
   // ring-polymer model
 
@@ -146,8 +142,7 @@ class FixPIMDLangevin : public Fix {
   void qc_step();    // integrate for dt/2 for the centroid mode (x <- x + v * dt/2)
   void o_step();     // integrate for dt according to O part (O-U process, for thermostating)
   void q_step();     // integrate for dt/2 for all the beads (x <- x + v * dt/2)
-  void nhc_temp_integrate_nmpimd(); 
-  void nhc_temp_integrate_pimd();
+  void nhc_temp_integrate(); 
 
   virtual void nh_v_temp();
 
@@ -204,6 +199,7 @@ class FixPIMDLangevin : public Fix {
   void compute_xf_vir();
   void compute_cvir();
   void compute_totenthalpy();
+  void compute_kecurrent();
 
   void write_restart(FILE *fp) override;
   int size_restart_global();
