@@ -46,7 +46,7 @@ static constexpr double EPSILON = 1.0e-6;
 enum{NONE,TYPE,MOLECULE,ID};
 enum{LT,LE,GT,GE,EQ,NEQ,BETWEEN};
 
-static constexpr double BIG = 1.0e20;
+#define BIG 1.0e20
 
 /* ----------------------------------------------------------------------
    initialize group memory
@@ -229,16 +229,12 @@ void Group::assign(int narg, char **arg)
         else error->all(FLERR,"Illegal group command");
 
         tagint bound1,bound2;
-        if (category == TYPE)
-          bound1 = (tagint) utils::expand_type_int(FLERR, arg[3], Atom::ATOM, lmp);
-        else bound1 = utils::tnumeric(FLERR, arg[3], false, lmp);
+        bound1 = utils::tnumeric(FLERR,arg[3],false,lmp);
         bound2 = -1;
 
         if (condition == BETWEEN) {
           if (narg != 5) error->all(FLERR,"Illegal group command");
-          if (category == TYPE)
-            bound2 = (tagint) utils::expand_type_int(FLERR, arg[4], Atom::ATOM, lmp);
-          else bound2 = utils::tnumeric(FLERR, arg[4], false, lmp);
+          bound2 = utils::tnumeric(FLERR,arg[4],false,lmp);
         } else if (narg != 4) error->all(FLERR,"Illegal group command");
 
         int *attribute = nullptr;
@@ -308,34 +304,26 @@ void Group::assign(int narg, char **arg)
         else if (category == MOLECULE) tattribute = atom->molecule;
         else if (category == ID) tattribute = atom->tag;
 
-        char *typestr = nullptr;
         tagint start,stop,delta;
 
         for (int iarg = 2; iarg < narg; iarg++) {
           delta = 1;
-          if (category == TYPE) {
-            delete[] typestr;
-            typestr = utils::expand_type(FLERR, arg[iarg], Atom::ATOM, lmp);
-            if (typestr) stop = start = utils::tnumeric(FLERR, typestr, false, lmp);
+          try {
+            ValueTokenizer values(arg[iarg],":");
+            start = values.next_tagint();
+            if (utils::strmatch(arg[iarg],"^-?\\d+$")) {
+              stop = start;
+            } else if (utils::strmatch(arg[iarg],"^-?\\d+:-?\\d+$")) {
+              stop = values.next_tagint();
+            } else if (utils::strmatch(arg[iarg],"^-?\\d+:-?\\d+:\\d+$")) {
+              stop = values.next_tagint();
+              delta = values.next_tagint();
+            } else throw TokenizerException("Syntax error","");
+          } catch (TokenizerException &e) {
+            error->all(FLERR,"Incorrect range string '{}': {}",arg[iarg],e.what());
           }
-          if (typestr == nullptr) {
-            try {
-              ValueTokenizer values(arg[iarg],":");
-              start = values.next_tagint();
-              if (utils::strmatch(arg[iarg],"^-?\\d+$")) {
-                stop = start;
-              } else if (utils::strmatch(arg[iarg],"^-?\\d+:-?\\d+$")) {
-                stop = values.next_tagint();
-              } else if (utils::strmatch(arg[iarg],"^-?\\d+:-?\\d+:\\d+$")) {
-                stop = values.next_tagint();
-                delta = values.next_tagint();
-              } else throw TokenizerException("Syntax error","");
-            } catch (TokenizerException &e) {
-              error->all(FLERR,"Incorrect range string '{}': {}",arg[iarg],e.what());
-            }
-            if (delta < 1)
-              error->all(FLERR,"Illegal range increment value");
-          }
+          if (delta < 1)
+            error->all(FLERR,"Illegal range increment value");
 
           // add to group if attribute matches value or sequence
 
@@ -349,8 +337,6 @@ void Group::assign(int narg, char **arg)
                   (tattribute[i]-start) % delta == 0) mask[i] |= bit;
           }
         }
-
-        delete[] typestr;
       }
 
     // style = variable
@@ -885,6 +871,24 @@ double Group::mass(int igroup, Region *region)
   double all;
   MPI_Allreduce(&one,&all,1,MPI_DOUBLE,MPI_SUM,world);
   return all;
+}
+
+double Group::Ne()  //?
+{
+  double *Ne = atom->Ne;
+
+  double electronnumber;
+  electronnumber = *Ne;
+  return electronnumber;
+}
+
+double Group::dE_dN()  //?
+{
+  double *dE_dN = atom->dE_dN;
+
+  double dEdN;
+  dEdN = *dE_dN;
+  return dEdN;
 }
 
 /* ----------------------------------------------------------------------

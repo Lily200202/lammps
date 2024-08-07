@@ -44,6 +44,8 @@ class Group : protected Pointers {
   bigint count(int, Region *);    // count atoms in group & region
   double mass(int);               // total mass of atoms in group
   double mass(int, Region *);
+  double Ne();  //?
+  double dE_dN();  //?
   double charge(int);    // total charge of atoms in group
   double charge(int, Region *);
   void bounds(int, double *);    // bounds of atoms in group

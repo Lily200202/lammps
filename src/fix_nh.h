@@ -53,8 +53,13 @@ class FixNH : public Fix {
   double t_current, t_target, ke_target;
   double t_freq;
 
+  double u_start, u_stop;  //?
+  double u_current, u_target;
+  double u_freq;
+
   int tstat_flag;    // 1 if control T
   int pstat_flag;    // 1 if control P
+  int ustat_flag;    // 1 if control U  //?
 
   int pstyle, pcouple, allremap;
   int p_flag[6];    // 1 if control P on this dim, 0 if not
@@ -66,8 +71,9 @@ class FixNH : public Fix {
   double drag, tdrag_factor;     // drag factor on particle thermostat
   double pdrag_factor;           // drag factor on barostat
   int kspace_flag;               // 1 if KSpace invoked, 0 if not
+  int nrigid;                    // number of rigid fixes
   int dilate_group_bit;          // mask for dilation group
-  std::vector<Fix *> rfix;       // list of rigid fixes
+  int *rfix;                     // indices of rigid fixes
   char *id_dilate;               // group name to dilate
   class Irregular *irregular;    // for migrating atoms after box flips
 
@@ -77,9 +83,9 @@ class FixNH : public Fix {
   int nlevels_respa;
   double *step_respa;
 
-  char *id_temp, *id_press;
-  class Compute *temperature, *pressure;
-  int tcomputeflag, pcomputeflag;    // 1 = compute was created by fix
+  char *id_temp, *id_press;  //?
+  class Compute *temperature, *pressure; //?  *chemical_potential
+  int tcomputeflag, pcomputeflag, ucomputeflag;    // 1 = compute was created by fix
                                      // 0 = created externally
 
   double *eta, *eta_dot;    // chain thermostat for particles
@@ -87,6 +93,9 @@ class FixNH : public Fix {
   double *eta_mass;
   int mtchain;                 // length of chain
   int mtchain_default_flag;    // 1 = mtchain is default
+
+  double *Ne_dot;  //?
+  double *Ne_mass;
 
   double *etap;    // chain thermostat for barostat
   double *etap_dot;
@@ -127,7 +136,8 @@ class FixNH : public Fix {
 
   void couple();
   virtual void remap();
-  void nhc_temp_integrate();
+  void nhc_temp_integrate();  
+  void nhc_mu_integrate();  //?
   void nhc_press_integrate();
 
   virtual void nve_x();    // may be overwritten by child classes
@@ -136,6 +146,8 @@ class FixNH : public Fix {
   virtual void nh_v_temp();
   virtual void compute_temp_target();
   virtual int size_restart_global();
+  
+  void compute_mu_target(); //?
 
   void compute_sigma();
   void compute_deviatoric();
