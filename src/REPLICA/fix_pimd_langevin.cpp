@@ -601,26 +601,9 @@ void FixPIMDLangevin::initial_integrate(int /*vflag*/)
   if (integrator == OBABO) {
     if (tstat_flag) {
 
-      int *type = atom->type;
-      double **v = atom->v;
-      double kecurrent, t_current;
-      kecurrent = 0;
-      for (int i = 0; i < nlocal; i++) {
-        kecurrent += (v[i][0] * v[i][0] + v[i][1] * v[i][1] + v[i][2] * v[i][2]) * mass[type[i]];
-      }
-      kecurrent *= force->mvv2e;
-      t_current = kecurrent / force->boltz / tdof;
       printf("0: %.30f\n", t_current);
       
       o_step();
-
-      kecurrent = 0;
-      for (int i = 0; i < nlocal; i++) {
-        kecurrent += (v[i][0] * v[i][0] + v[i][1] * v[i][1] + v[i][2] * v[i][2]) * mass[type[i]];
-      }
-      kecurrent *= force->mvv2e;
-      t_current = kecurrent / force->boltz / tdof;
-      printf("1: %.30f\n", t_current);
 
       if (removecomflag) remove_com_motion();
       if (pstat_flag) press_o_step();
@@ -631,16 +614,6 @@ void FixPIMDLangevin::initial_integrate(int /*vflag*/)
       press_v_step();
     }
     b_step();
-    
-    int *type = atom->type;
-    double **v = atom->v;
-    double kecurrent, t_current;
-    for (int i = 0; i < nlocal; i++) {
-        kecurrent += (v[i][0] * v[i][0] + v[i][1] * v[i][1] + v[i][2] * v[i][2]) * mass[type[i]];
-    }
-    kecurrent *= force->mvv2e;
-    t_current = kecurrent / force->boltz / tdof;
-    printf("2: %.30f\n", t_current);
 
     if (method == NMPIMD) {
       inter_replica_comm(x);
@@ -652,14 +625,6 @@ void FixPIMDLangevin::initial_integrate(int /*vflag*/)
       a_step();
       qc_step();
       a_step();
-
-      kecurrent = 0;
-      for (int i = 0; i < nlocal; i++) {
-        kecurrent += (v[i][0] * v[i][0] + v[i][1] * v[i][1] + v[i][2] * v[i][2]) * mass[type[i]];
-      }
-      kecurrent *= force->mvv2e;
-      t_current = kecurrent / force->boltz / tdof;
-      printf("3: %.30f\n", t_current);
 
     } else if (method == PIMD) {
       q_step();
@@ -743,29 +708,11 @@ void FixPIMDLangevin::final_integrate()
   }
   b_step();
 
-  int *type = atom->type;
-  double **v = atom->v;
-  int nlocal = atom->nlocal;
-  double kecurrent, t_current;
-  kecurrent = 0;
-  for (int i = 0; i < nlocal; i++) {
-    kecurrent += (v[i][0] * v[i][0] + v[i][1] * v[i][1] + v[i][2] * v[i][2]) * mass[type[i]];
-  }
-  kecurrent *= force->mvv2e;
-  t_current = kecurrent / force->boltz / tdof;
   printf("4: %.30f\n", t_current);
 
   if (integrator == OBABO) {
     if (tstat_flag) {
       o_step();
-
-      kecurrent = 0;
-      for (int i = 0; i < nlocal; i++) {
-        kecurrent += (v[i][0] * v[i][0] + v[i][1] * v[i][1] + v[i][2] * v[i][2]) * mass[type[i]];
-      }
-      kecurrent *= force->mvv2e;
-      t_current = kecurrent / force->boltz / tdof;
-      printf("5: %.30f\n", t_current);
 
       if (removecomflag) remove_com_motion();
       if (pstat_flag) press_o_step();
@@ -908,13 +855,11 @@ void FixPIMDLangevin::qc_step()
 
   if (!pstat_flag) {
     if (universe->iworld == 0) {
-      printf("qc_step\n");
       for (int i = 0; i < nlocal; i++) {
         x[i][0] += dtv * v[i][0];
         x[i][1] += dtv * v[i][1];
         x[i][2] += dtv * v[i][2];
       }
-      printf("x[22][0]: %.30f\n", x[22][0]);
     }
   } else {
     if (universe->iworld == 0) {
@@ -975,7 +920,6 @@ void FixPIMDLangevin::a_step()
   double x0, x1, x2, v0, v1, v2;    // three components of x[i] and v[i]
 
   if (universe->iworld != 0) {
-    printf("a_step\n");
     for (int i = 0; i < n; i++) {
       x0 = x[i][0];
       x1 = x[i][1];
@@ -1234,27 +1178,25 @@ void FixPIMDLangevin::nhc_init()
   if (thermostat == NHC) {
     if (tstat_flag) {
       eta_mass = new double[mtchain];
-      eta_mass[0] = tdof * np * force->boltz * temp / (t_freq*t_freq);
-      // eta_mass[0] = tdof * force->boltz * temp / (t_freq*t_freq);
-      for (int ich = 1; ich < mtchain; ich++)
-        // eta_mass[ich] = np * force->boltz * temp / (_omega_np*_omega_np);
-        eta_mass[ich] = np * force->boltz * temp / (t_freq*t_freq);
-      for (int ich = 1; ich < mtchain; ich++) {
-        eta_dotdot[ich] = (eta_mass[ich-1]*eta_dot[ich-1]*eta_dot[ich-1] -
-                    np * force->boltz * temp) / eta_mass[ich];
+      if (np == 1){
+        eta_mass[0] = tdof * np * force->boltz * temp / (t_freq*t_freq);
+        for (int ich = 1; ich < mtchain; ich++)
+          eta_mass[ich] = np * force->boltz * temp / (t_freq*t_freq);
+        for (int ich = 1; ich < mtchain; ich++) {
+          eta_dotdot[ich] = (eta_mass[ich-1]*eta_dot[ich-1]*eta_dot[ich-1] -
+                      np * force->boltz * temp) / eta_mass[ich];
+        }
       }
+      else {
+        eta_mass[0] = tdof * np * force->boltz * temp / (t_freq*t_freq);
+        for (int ich = 1; ich < mtchain; ich++)
+          eta_mass[ich] = np * force->boltz * temp / (_omega_np*_omega_np);
+        for (int ich = 1; ich < mtchain; ich++) {
+          eta_dotdot[ich] = (eta_mass[ich-1]*eta_dot[ich-1]*eta_dot[ich-1] -
+                      np * force->boltz * temp) / eta_mass[ich];
+        }
+      } 
     }
-    // if (tstat_flag) {
-    //   eta_mass = new double[np];
-    //   eta_mass[0] = 4 * np * force->boltz * temp / (t_freq*t_freq);
-    //   for (int i = 1; i < np; i++) {
-    //     eta_mass[i] = np * force->boltz * temp / (_omega_k[i]*_omega_k[i]);
-    //   }
-    //   for (int ich = 1; ich < mtchain; ich++) {
-    //     eta_dotdot[ich] = (eta_mass[universe->iworld]*eta_dot[ich-1]*eta_dot[ich-1] -
-    //                 np * force->boltz * temp) / eta_mass[universe->iworld];
-    //   }
-    // }
 
     std::string out = "Initializing PI Langevin equation thermostat...\n";
     out += "  Bead ID    |    omega    |    tau    |    eta_mass\n";
@@ -1315,78 +1257,6 @@ void FixPIMDLangevin::o_step()
 
 /* ---------------------------------------------------------------------- */
 
-// void FixPIMDLangevin::nhc_temp_integrate()
-// {
-//   int ich;
-//   double expfac;
-//   int *type = atom->type;
-//   double **v = atom->v;
-//   int nlocal = atom->nlocal;
-//   double kecurrent, t_current;
-
-//   for (int i = 0; i < nlocal; i++) {
-//     for (int j = 0; j < 3; j++) {
-//       kecurrent += mass[type[i]] * atom->v[i][j] * atom->v[i][j]; 
-//     }
-//   }
-//   kecurrent *= force->mvv2e;
-
-//   t_current = kecurrent / force->boltz / tdof;
-
-//   if (eta_mass[universe->iworld] > 0.0)
-//     eta_dotdot[0] = (kecurrent - np * ke_target)/eta_mass[universe->iworld];
-//   else eta_dotdot[0] = 0.0;
-
-//   double ncfac = 1.0/nc_tchain;
-//   for (int iloop = 0; iloop < nc_tchain; iloop++) {
-
-//     for (ich = mtchain-1; ich > 0; ich--) {
-//       expfac = exp(-ncfac*dt8*eta_dot[ich+1]);
-//       eta_dot[ich] *= expfac;
-//       eta_dot[ich] += eta_dotdot[ich] * ncfac*dt4;
-//       eta_dot[ich] *= tdrag_factor;
-//       eta_dot[ich] *= expfac;
-//     }
-
-//     expfac = exp(-ncfac*dt8*eta_dot[1]);
-//     eta_dot[0] *= expfac;
-//     eta_dot[0] += eta_dotdot[0] * ncfac*dt4;
-//     eta_dot[0] *= tdrag_factor;
-//     eta_dot[0] *= expfac;
-
-//     factor_eta = exp(-ncfac*dthalf*eta_dot[0]);
-//     nh_v_temp();
-
-//     // rescale temperature due to velocity scaling
-//     // should not be necessary to explicitly recompute the temperature
-
-//     t_current *= factor_eta*factor_eta;
-//     kecurrent = tdof * force->boltz * t_current;
-
-//     if (eta_mass[universe->iworld] > 0.0)
-//       eta_dotdot[0] = (kecurrent - np * ke_target)/eta_mass[universe->iworld];
-//     else eta_dotdot[0] = 0.0;
-
-//     for (ich = 0; ich < mtchain; ich++)
-//       eta[ich] += ncfac*dthalf*eta_dot[ich];
-
-//     eta_dot[0] *= expfac;
-//     eta_dot[0] += eta_dotdot[0] * ncfac*dt4;
-//     eta_dot[0] *= expfac;
-
-//     for (ich = 1; ich < mtchain; ich++) {
-//       expfac = exp(-ncfac*dt8*eta_dot[ich+1]);
-//       eta_dot[ich] *= expfac;
-//       eta_dotdot[ich] = (eta_mass[universe->iworld]*eta_dot[ich-1]*eta_dot[ich-1]
-//                          - np * force->boltz * temp)/eta_mass[universe->iworld];
-//       eta_dot[ich] += eta_dotdot[ich] * ncfac*dt4;
-//       eta_dot[ich] *= expfac;
-//     }
-//   }
-// }
-
-// /* ---------------------------------------------------------------------- */
-
 void FixPIMDLangevin::nhc_temp_integrate()
 {
   int ich;
@@ -1394,15 +1264,10 @@ void FixPIMDLangevin::nhc_temp_integrate()
   int *type = atom->type;
   double **v = atom->v;
   int nlocal = atom->nlocal;
-  // double kecurrent = 0.0, t_current = 0.0;
   double kecurrent, t_current;
-  // double kecurrent = 0.0, t_current;
 
 
   for (int i = 0; i < nlocal; i++) {
-    // for (int j = 0; j < 3; j++) {
-    //   kecurrent += mass[type[i]] * atom->v[i][j] * atom->v[i][j];     
-    // }
     kecurrent += (v[i][0] * v[i][0] + v[i][1] * v[i][1] + v[i][2] * v[i][2]) * mass[type[i]];
   }
   kecurrent *= force->mvv2e;
@@ -1414,12 +1279,6 @@ void FixPIMDLangevin::nhc_temp_integrate()
   else eta_dotdot[0] = 0.0;
 
   printf("kecurrent: %.30f\n", kecurrent);
-  printf("ke_target: %.30f\n", ke_target);
-  printf("eta_mass[0]: %.30f\n", eta_mass[0]);
-
-  printf("eta_dotdot[0]1: %.30f\n", eta_dotdot[0]);
-  printf("eta_dot[0]1: %.30f\n", eta_dot[0]);
-  printf("eta[0]1: %.30f\n", eta[0]);
 
   double ncfac = 1.0/nc_tchain;
   for (int iloop = 0; iloop < nc_tchain; iloop++) {
@@ -1437,10 +1296,6 @@ void FixPIMDLangevin::nhc_temp_integrate()
     eta_dot[0] += eta_dotdot[0] * ncfac*dt4;
     eta_dot[0] *= tdrag_factor;
     eta_dot[0] *= expfac;
-
-    printf("eta_dotdot[0]2: %.30f\n", eta_dotdot[0]);
-    printf("eta_dot[0]2: %.30f\n", eta_dot[0]);
-    printf("eta[0]2: %.30f\n", eta[0]);
 
     factor_eta = exp(-ncfac*dthalf*eta_dot[0]);
     nh_v_temp();
@@ -1462,10 +1317,6 @@ void FixPIMDLangevin::nhc_temp_integrate()
     eta_dot[0] += eta_dotdot[0] * ncfac*dt4;
     eta_dot[0] *= expfac;
 
-    printf("eta_dotdot[0]3: %.30f\n", eta_dotdot[0]);
-    printf("eta_dot[0]3: %.30f\n", eta_dot[0]);
-    printf("eta[0]3: %.30f\n", eta[0]);
-
     for (ich = 1; ich < mtchain; ich++) {
       expfac = exp(-ncfac*dt8*eta_dot[ich+1]);
       eta_dot[ich] *= expfac;
@@ -1474,10 +1325,6 @@ void FixPIMDLangevin::nhc_temp_integrate()
       eta_dot[ich] += eta_dotdot[ich] * ncfac*dt4;
       eta_dot[ich] *= expfac;
     }
-
-    printf("eta_dotdot[0]4: %.30f\n", eta_dotdot[0]);
-    printf("eta_dot[0]4: %.30f\n", eta_dot[0]);
-    printf("eta[0]4: %.30f\n", eta[0]);
   }
 }
 
@@ -2064,25 +1911,6 @@ void FixPIMDLangevin::restart(char *buf)
   auto list = (double *) buf;
   for (int i = 0; i < 6; i++) vw[i] = list[n++];
 }
-
-// /* ---------------------------------------------------------------------- */
-
-// double FixPIMDLangevin::compute_scalar()
-// {
-//   double energy;
-//   double kt = force->boltz * temp;
-//   int ich;
-
-//   energy = 0.0;
-
-//   if (tstat_flag) {
-//     energy += np * ke_target * eta[0] + 0.5*eta_mass[0]*eta_dot[0]*eta_dot[0];
-//     for (ich = 1; ich < mtchain; ich++)
-//       energy += np * kt * eta[ich] + 0.5*eta_mass[ich]*eta_dot[ich]*eta_dot[ich];
-//   }
-
-//   return energy;
-// }
 
 /* ----------------------------------------------------------------------
    if thermostat == NHC, return a single element of the following vectors, in this order:
