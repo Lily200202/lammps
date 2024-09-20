@@ -600,8 +600,6 @@ void FixPIMDLangevin::initial_integrate(int /*vflag*/)
   }
   if (integrator == OBABO) {
     if (tstat_flag) {
-
-      printf("0: %.30f\n", t_current);
       
       o_step();
 
@@ -707,8 +705,6 @@ void FixPIMDLangevin::final_integrate()
     press_v_step();
   }
   b_step();
-
-  printf("4: %.30f\n", t_current);
 
   if (integrator == OBABO) {
     if (tstat_flag) {
@@ -1264,8 +1260,7 @@ void FixPIMDLangevin::nhc_temp_integrate()
   int *type = atom->type;
   double **v = atom->v;
   int nlocal = atom->nlocal;
-  double kecurrent, t_current;
-
+  double kecurrent = 0, t_current;
 
   for (int i = 0; i < nlocal; i++) {
     kecurrent += (v[i][0] * v[i][0] + v[i][1] * v[i][1] + v[i][2] * v[i][2]) * mass[type[i]];
@@ -1277,8 +1272,6 @@ void FixPIMDLangevin::nhc_temp_integrate()
   if (eta_mass[0] > 0.0)
     eta_dotdot[0] = (kecurrent - np * ke_target)/eta_mass[0];
   else eta_dotdot[0] = 0.0;
-
-  printf("kecurrent: %.30f\n", kecurrent);
 
   double ncfac = 1.0/nc_tchain;
   for (int iloop = 0; iloop < nc_tchain; iloop++) {
