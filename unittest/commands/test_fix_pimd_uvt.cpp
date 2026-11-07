@@ -9,6 +9,8 @@
 
 #define LAMMPS_LIB_MPI 1
 
+#include "atom.h"
+#include "compute.h"
 #include "fix.h"
 #include "lammps.h"
 #include "modify.h"
@@ -66,6 +68,62 @@ class FixPIMDUVTSerialTest : public LAMMPSTest {
     return pimd_test::fix_value(lmp, id, index);
   }
 };
+
+TEST_F(FixPIMDUVTSerialTest, ComputeDerivativeStaysCurrentThroughVariable)
+{
+  std::vector<double> reference;
+  for (const char *source : {"c_position", "v_derivative", "c_positions[1]", "v_derivatives[1]"}) {
+    setup_quadratic_system();
+    command("velocity all set 1.0 0.0 0.0");
+    command("compute position all reduce sum x");
+    command("compute positions all reduce sum x y");
+    command("variable derivative equal c_position");
+    command("variable derivatives vector c_positions");
+    command(std::string("fix cp all pimd/uvt temp 1.0 Tdamp 0.5 mu 2.0 Udamp 0.5 ") +
+            "ne 1.8 ne_velocity 0.0 removecom no dedn " + source);
+    // Do not let thermo refresh the derivative's compute on intermediate steps.
+    command("thermo 1000");
+    command("thermo_style custom step");
+    command("run 10 post no");
+
+    double expected = 0.0;
+    for (int i = 0; i < lmp->atom->nlocal; ++i) expected += lmp->atom->x[i][0];
+    auto *fix = lmp->modify->get_fix_by_id("cp");
+    int dim;
+    const auto value = [&](const char *name) {
+      return *static_cast<double *>(fix->extract(name, dim));
+    };
+    EXPECT_NEAR(value("dedn"), expected, 1.0e-10) << source;
+    if (reference.empty()) {
+      reference = {value("ne"), value("ne_dot")};
+    } else {
+      EXPECT_NEAR(value("ne"), reference[0], 1.0e-12) << source;
+      EXPECT_NEAR(value("ne_dot"), reference[1], 1.0e-12) << source;
+    }
+    command("clear");
+  }
+}
+
+TEST_F(FixPIMDUVTSerialTest, VariableDerivativeSchedulesPerAtomEnergy)
+{
+  setup_quadratic_system();
+  command("pair_style lj/cut 2.5");
+  command("pair_coeff * * 1.0 1.0");
+  command("compute total all pe");
+  command("compute energies all pe/atom");
+  command("compute energy all reduce sum c_energies");
+  command("variable derivative equal c_energy");
+  command("fix cp all pimd/uvt temp 1.0 Tdamp 0.5 mu 2.0 Udamp 0.5 "
+          "ne 1.8 ne_velocity 0.0 dedn v_derivative");
+  command("thermo 1000");
+  command("thermo_style custom step");
+  command("run 10 post no");
+  int dim;
+  auto *fix = lmp->modify->get_fix_by_id("cp");
+  const double derivative = *static_cast<double *>(fix->extract("dedn", dim));
+  auto *total = lmp->modify->get_compute_by_id("total");
+  EXPECT_NEAR(derivative, total->compute_scalar(), 1.0e-9);
+}
 
 TEST_F(FixPIMDUVTSerialTest, RestartRestoresElectronState)
 {

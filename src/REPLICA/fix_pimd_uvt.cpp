@@ -133,6 +133,7 @@ void FixPIMDUVT::setup_subclass_state()
 {
   FixPIMDNVT::setup_subclass_state();
   resolve_dedn_source();
+  modify->addstep_compute_all(update->ntimestep);
   u_freq = 1.0 / u_period;
   *Ne_mass = tdof * force->boltz * temp / (u_freq * u_freq);
 }
@@ -375,7 +376,9 @@ void FixPIMDUVT::refresh_dedn_cache()
 {
   // Evaluate on all ranks: the source may perform collective communication.
   // The source returns a global bead value; contribute it once per partition.
+  modify->clearstep_compute();
   double dedn_local = evaluate_dedn();
+  modify->addstep_compute(update->ntimestep + 1);
   if (comm->me != 0) dedn_local = 0.0;
   double dedn_avg = 0.0;
   MPI_Allreduce(&dedn_local, &dedn_avg, 1, MPI_DOUBLE, MPI_SUM, universe->uworld);
