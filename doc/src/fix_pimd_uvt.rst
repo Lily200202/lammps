@@ -46,6 +46,12 @@ hierarchy with one global electronic coordinate shared by all beads.
 The number of path-integral beads is set by the number of LAMMPS
 partitions, so the job must be launched with one partition per bead.
 
+The electronic mass is :math:`W_\mathrm{e}=g_\mathrm{c} k_B T\,\mathrm{Udamp}^2`,
+where :math:`g_\mathrm{c}` is the centroid mode's nuclear thermostat DOF,
+including any ``removecom`` correction or ``tdof`` override. This single
+mass is shared by all beads and MPI ranks, even when internal modes have
+different nuclear DOF.
+
 The ``dedn`` source may be an equal-style variable (``v_name``), a
 global compute (``c_ID``), or a global fix (``f_ID``).  If the source
 provides a global vector, an entry can be selected with the usual
