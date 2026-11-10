@@ -10,11 +10,12 @@ Syntax
 
 .. code-block:: LAMMPS
 
-   fix ID group-ID uvt temp Tstart Tstop Tdamp mu Mustart Mustop Mudamp ne Ne0 dedn source [keyword value ...]
+   fix ID group-ID uvt temp Tstart Tstop Tdamp mu Mu Udamp tau_U ne Ne0 dedn source [keyword value ...]
 
 * ID, group-ID are documented in :doc:`fix <fix>` command
 * ``temp`` values = Tstart Tstop Tdamp
-* ``mu`` values = Mustart Mustop Mudamp
+* ``mu`` value = constant chemical potential
+* ``Udamp`` value = positive electronic damping time
 * ``ne`` value = initial electronic coordinate
 * ``dedn`` value = global scalar or vector reference used as dE/dN
 
@@ -27,7 +28,7 @@ Examples
 .. code-block:: LAMMPS
 
    variable dEdN equal 5.0*(f_cp[1]-1.0)
-   fix cp all uvt temp 1.0 1.0 0.5 mu 2.0 2.0 0.5 ne 1.8 dedn v_dEdN
+   fix cp all uvt temp 1.0 1.0 0.5 mu 2.0 Udamp 0.5 ne 1.8 dedn v_dEdN
 
 Description
 """""""""""
@@ -43,7 +44,7 @@ electron-number velocity together.  The fix creates
 :doc:`compute temp/uvt <compute_temp_uvt>` with ID *fix-ID_temp* to provide
 the combined temperature and :math:`g+1` degrees of freedom, where
 :math:`g` is the nuclear DOF.  The electronic mass remains
-:math:`W_\mathrm{e}=g k_B T_\mathrm{target} \, \mathrm{Mudamp}^2`.
+:math:`W_\mathrm{e}=g k_B T_\mathrm{target} \, \mathrm{Udamp}^2`.
 It is initialized before the first combined temperature evaluation and
 updated with the temperature target during integration.
 
@@ -84,25 +85,28 @@ kicked at the outermost level; the electronic coordinate drifts with the
 particle coordinates at the innermost level.  Derivative providers must
 supply the complete derivative at the outermost force stage.
 
-The global fix vector starts with seven physical outputs:
+The ``mu`` target is constant throughout a run. ``Udamp`` has time units
+and must be positive. For compatibility, the old ``mu Mu Mu Mudamp``
+syntax is accepted when both endpoints are equal; unequal endpoints are
+rejected. Prefer ``mu Mu Udamp tau_U`` for new inputs.
+
+The global fix vector starts with six physical outputs:
 
 #. electron number ``Ne``
 #. combined instantaneous temperature ``T_ins``
 #. electron-number velocity ``Ne_dot``
 #. energy derivative ``dEdN``
-#. electrochemical-potential target ``mu``
 #. electronic kinetic energy
 #. electronic potential contribution ``-mu*Ne``
 
-The regular Nose-Hoover vector follows, starting at entry 8. The total
-vector length is 7+4*M for a thermostat chain of length M. All seven physical
+The regular Nose-Hoover vector follows, starting at entry 7. The total
+vector length is 6+4*M for a thermostat chain of length M. All six physical
 indices are independent of M. The temperature output is intensive and is
 not normalized by atom count.
 
-This replaces the earlier layout that appended the electronic outputs after
-the chain. Update input scripts accordingly, including derivative-source
-references to the electron number (formerly entry 13 for ``tchain 3``, now
-entry 1).
+The target ``mu`` is no longer a vector output. Electronic kinetic and
+potential energies are now entries 5 and 6 (previously 6 and 7), and the
+Nose-Hoover entries shift down by one. ``Ne`` remains entry 1.
 
 The first Nose-Hoover potential-energy entry includes all
 :math:`g+1` controlled DOF.  The fix scalar includes the combined chain

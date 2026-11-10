@@ -24,7 +24,6 @@ struct UVTVectorIndices {
   int ne;
   int ne_dot;
   int dedn;
-  int mu;
   int ne_ke;
   int electronic_potential;
 };
@@ -37,7 +36,7 @@ inline int nuclear_vector_size(int tchain = kDefaultTChain)
 inline UVTVectorIndices uvt_vector_indices(int tchain = kDefaultTChain)
 {
   const int prefix = nuclear_vector_size(tchain);
-  return {prefix, prefix + 1, prefix + 2, prefix + 3, prefix + 4, prefix + 5};
+  return {prefix, prefix + 1, prefix + 2, prefix + 3, prefix + 4};
 }
 
 inline int lammps_fix_index(int zero_based_index)

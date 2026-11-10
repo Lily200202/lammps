@@ -20,7 +20,7 @@ Examples
 .. code-block:: LAMMPS
 
    variable dEdN equal 0.0
-   fix cp all uvt temp 300 300 100 mu 0 0 100 ne 1 ne_velocity 0 dedn v_dEdN
+   fix cp all uvt temp 300 300 100 mu 0 Udamp 100 ne 1 ne_velocity 0 dedn v_dEdN
    compute combined all temp/uvt cp
    thermo_style custom step f_cp[1] temp f_cp[2] c_combined
 

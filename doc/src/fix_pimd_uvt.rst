@@ -17,8 +17,8 @@ Syntax
 * ``thermostat`` value = ``NHC``
 * ``temp`` value = target temperature
 * ``Tdamp`` value = nuclear thermostat damping parameter
-* ``mu`` value = target chemical potential
-* ``Udamp`` value = electronic thermostat damping parameter
+* ``mu`` value = constant chemical potential
+* ``Udamp`` value = positive electronic damping time
 * ``ne`` value = initial electronic coordinate
 * ``dedn`` value = global scalar or vector reference used as dE/dN
 
@@ -54,11 +54,14 @@ global electronic coordinate.
 
 The electronic coordinate is exposed through the global fix vector.
 The first 10 entries are the path-integral energy and estimator outputs,
-followed by ``4*tchain`` thermostat entries and then nine uVT entries:
-``Ne``, ``Ne_dot``, ``dEdN``, ``mu``, the electronic kinetic energy,
+followed by ``4*tchain`` thermostat entries and then eight uVT entries:
+``Ne``, ``Ne_dot``, ``dEdN``, the electronic kinetic energy,
 the electronic potential contribution, the nuclear thermostat work, the
 electronic thermostat work, and their sum.  For ``tchain 3``, ``Ne``,
-``Ne_dot``, ``dEdN``, and ``mu`` are ``f_ID[23]`` through ``f_ID[26]``.
+``Ne_dot``, and ``dEdN`` are ``f_ID[23]`` through ``f_ID[25]``.
+The target ``mu`` is constant and is no longer a vector output. Entries
+following the former ``mu`` output shift down by one; electronic kinetic
+energy is now ``f_ID[26]``. The vector length is ``18+4*tchain``.
 
 The fix writes restart data for the nuclear thermostat state and the
 electronic degree of freedom, so simulations may be continued with

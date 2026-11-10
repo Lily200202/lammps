@@ -57,7 +57,7 @@ protected:
         command("variable k_quad equal 5.0");
         command("variable N0_quad equal 1.0");
         command("variable dEdN equal v_k_quad*(f_cp[1]-v_N0_quad)");
-        command("fix cp all uvt temp 1.0 1.0 0.5 mu 2.0 2.0 0.5 ne 1.8 ne_velocity 0.0 dedn v_dEdN");
+        command("fix cp all uvt temp 1.0 1.0 0.5 mu 2.0 Udamp 0.5 ne 1.8 ne_velocity 0.0 dedn v_dEdN");
     }
 
     double fix_value(const char *id, int index)
@@ -100,6 +100,46 @@ public:
     }
 };
 
+TEST_F(FixUVTTest, ConstantMuSyntaxAndOutputLayout)
+{
+    for (const char *settings : {"mu 0 Udamp 0.5", "Udamp 0.5 mu 0", "mu 0 0 0.5"}) {
+        setup_quadratic_system();
+        command("variable response equal 0.0");
+        command(std::string("fix cp all uvt temp 1 1 0.5 ") + settings +
+                " ne 1.8 ne_velocity 0.25 dedn v_response");
+        command("run 0 post no");
+        auto *fix = lmp->modify->get_fix_by_id("cp");
+        int dim;
+        const double mass = *static_cast<double *>(fix->extract("ne_mass", dim));
+        EXPECT_EQ(fix->size_vector, 6 + 4 * 3);
+        EXPECT_NEAR(fix_value("cp", 4), 0.5 * mass * 0.25 * 0.25, 1.0e-12);
+        EXPECT_DOUBLE_EQ(fix_value("cp", 5), 0.0);
+        command("clear");
+    }
+}
+
+TEST_F(FixUVTTest, RejectsChemicalPotentialRamp)
+{
+    setup_quadratic_system();
+    command("variable response equal 0.0");
+    TEST_FAILURE("only supports constant mu", {
+        command("fix cp all uvt temp 1 1 0.5 mu 2 3 0.5 ne 1.8 dedn v_response");
+    });
+}
+
+TEST_F(FixUVTTest, RequiresPositiveUdamp)
+{
+    for (const char *settings : {"mu 0", "mu 0 Udamp 0", "mu 0 Udamp -1"}) {
+        setup_quadratic_system();
+        command("variable response equal 0.0");
+        TEST_FAILURE("damping.*must be > 0.0", {
+            command(std::string("fix cp all uvt temp 1 1 0.5 ") + settings +
+                    " ne 1.8 dedn v_response");
+        });
+        command("clear");
+    }
+}
+
 TEST_F(FixUVTTest, DerivativeIsInitializedAndUpdatedAfterCoordinateDrift)
 {
     setup_quadratic_system();
@@ -120,7 +160,7 @@ TEST_F(FixUVTTest, ForceStageProviderIsReadOncePerStep)
             return new FixDEDNProvider(lmp, narg, arg);
         };
     command("fix provider all dedn/provider");
-    command("fix cp all uvt temp 1 1 0.5 mu 2 2 0.5 ne 1.8 dedn f_provider");
+    command("fix cp all uvt temp 1 1 0.5 mu 2 Udamp 0.5 ne 1.8 dedn f_provider");
     command("run 10 post no");
     auto *provider = static_cast<FixDEDNProvider *>(lmp->modify->get_fix_by_id("provider"));
     EXPECT_EQ(provider->reads, 11);
@@ -152,7 +192,7 @@ TEST_F(FixUVTTest, ComputeDependencyIsRefreshedAfterDrift)
             return new FixEarlyCompute(lmp, narg, arg);
         };
     command("fix early all early/compute");
-    command("fix cp all uvt temp 1 1 100000 mu 2 2 0.5 ne 1.8 dedn v_response");
+    command("fix cp all uvt temp 1 1 100000 mu 2 Udamp 0.5 ne 1.8 dedn v_response");
     command("run 1 post no");
     double local = 0.0, total = 0.0;
     for (int i = 0; i < lmp->atom->nlocal; ++i) local += lmp->atom->x[i][0];
@@ -165,7 +205,7 @@ TEST_F(FixUVTTest, RespaElectronicKicksUseOutermostTimestep)
     setup_quadratic_system();
     command("run_style respa 2 4");
     command("variable response equal 4.0");
-    command("fix cp all uvt temp 1 1 1.0e10 mu 2 2 0.5 ne 1.8 dedn v_response");
+    command("fix cp all uvt temp 1 1 1.0e10 mu 2 Udamp 0.5 ne 1.8 dedn v_response");
     command("run 0 post no");
     int dim = 0;
     auto *cp = lmp->modify->get_fix_by_id("cp");
@@ -207,7 +247,7 @@ TEST_F(FixUVTTest, RestartRestoresElectronState)
     command("variable k_quad equal 5.0");
     command("variable N0_quad equal 1.0");
     command("variable dEdN equal v_k_quad*(f_cp[1]-v_N0_quad)");
-    command("fix cp all uvt temp 1.0 1.0 0.5 mu 2.0 2.0 0.5 ne 1.8 ne_velocity 0.0 dedn v_dEdN");
+    command("fix cp all uvt temp 1.0 1.0 0.5 mu 2.0 Udamp 0.5 ne 1.8 ne_velocity 0.0 dedn v_dEdN");
     command("run 0 post no");
     platform::unlink("uvt.restart");
 
@@ -217,13 +257,13 @@ TEST_F(FixUVTTest, RestartRestoresElectronState)
     EXPECT_NEAR(fix_value("cp", 4), energy_before, 1.0e-10);
 }
 
-TEST_F(FixUVTTest, ExtractCurrentMuReportsCurrentDEDN)
+TEST_F(FixUVTTest, ExtractCurrentResponseReportsCurrentDEDN)
 {
     setup_quadratic_system();
     command("variable k_quad equal 5.0");
     command("variable N0_quad equal 1.0");
     command("variable dEdN equal v_k_quad*(f_cp[1]-v_N0_quad)");
-    command("fix cp all uvt temp 1.0 1.0 0.5 mu 2.0 3.0 0.5 ne 1.8 ne_velocity 0.0 dedn v_dEdN");
+    command("fix cp all uvt temp 1.0 1.0 0.5 mu 2.0 Udamp 0.5 ne 1.8 ne_velocity 0.0 dedn v_dEdN");
     command("run 0 post no");
 
     auto *fix = lmp->modify->get_fix_by_id("cp");
@@ -238,7 +278,7 @@ TEST_F(FixUVTTest, ExtractCurrentMuReportsCurrentDEDN)
     EXPECT_EQ(dim, 1);
 
     EXPECT_NEAR(*u_current, fix_value("cp", 3), 1.0e-12);
-    EXPECT_NE(*u_current, fix_value("cp", 4));
+    EXPECT_NE(*u_current, 2.0);
 }
 
 } // namespace LAMMPS_NS

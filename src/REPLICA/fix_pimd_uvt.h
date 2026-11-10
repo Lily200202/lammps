@@ -38,7 +38,6 @@ class FixPIMDUVT : public FixPIMDNVT {
  protected:
   bool parse_keyword(int, char **, int &) override;
   void setup_subclass_state() override;
-  void thermostat_step() override;
   void b_step() override;
   void qc_step() override;
 
@@ -52,7 +51,6 @@ class FixPIMDUVT : public FixPIMDNVT {
   int unpack_subclass_restart(const double *, int) override;
   double compute_subclass_vector(int) const override;
 
-  void compute_mu_target();
   void thermostat_extra_velocity_step() override;
   double evaluate_dedn();
   void parse_dedn_source(const char *);
@@ -62,8 +60,6 @@ class FixPIMDUVT : public FixPIMDNVT {
   double *Ne;
   double *Ne_dot;
   double *Ne_mass;
-  double u_start, u_stop;
-  double u_target;
   double u_freq;
   double u_period;
   double ne_ecouple_work;

@@ -47,7 +47,7 @@ print           "Quadratic toy model target Ne* = ${Ne_target}"
 # In a 2-bead PIMD run, partition 0 gets 0, partition 1 gets 1.
 variable        worldid   universe 0 1
 
-# For tchain 3, Ne, Ne_dot, dEdN, and mu are f_cp[23:26].
+# For tchain 3, Ne, Ne_dot, and dEdN are f_cp[23:25].
 # These electronic outputs are global values and are not normalized by natoms.
 variable        dEdN      equal v_k_quad*(f_cp[23]-v_N0_quad)
 
@@ -58,7 +58,7 @@ fix             cp all pimd/uvt method nmpimd thermostat NHC &
                 dedn v_dEdN
 
 thermo          50
-thermo_style    custom step temp etotal f_cp[23] f_cp[24] f_cp[25] f_cp[26]
+thermo_style    custom step temp etotal f_cp[23] f_cp[24] f_cp[25] v_mu_target
 thermo_modify   flush yes
 
 run             1000

@@ -131,7 +131,6 @@ TEST_F(FixPIMDUVTSerialTest, RestartRestoresElectronState)
   double ne_before = 0.0;
   double nedot_before = 0.0;
   double dedn_before = 0.0;
-  double mu_before = 0.0;
 
   setup_quadratic_system();
   setup_uvt_fix("pimd/uvt", 1.8, 0.0);
@@ -140,7 +139,6 @@ TEST_F(FixPIMDUVTSerialTest, RestartRestoresElectronState)
   ne_before = fix_value("cp", uvt.ne);
   nedot_before = fix_value("cp", uvt.ne_dot);
   dedn_before = fix_value("cp", uvt.dedn);
-  mu_before = fix_value("cp", uvt.mu);
 
   command("write_restart pimd_uvt.restart");
   command("clear");
@@ -152,7 +150,6 @@ TEST_F(FixPIMDUVTSerialTest, RestartRestoresElectronState)
   EXPECT_NEAR(fix_value("cp", uvt.ne), ne_before, 1.0e-10);
   EXPECT_NEAR(fix_value("cp", uvt.ne_dot), nedot_before, 1.0e-10);
   EXPECT_NEAR(fix_value("cp", uvt.dedn), dedn_before, 1.0e-10);
-  EXPECT_NEAR(fix_value("cp", uvt.mu), mu_before, 1.0e-10);
 }
 
 TEST_F(FixPIMDUVTSerialTest, QuadraticToyFixedPointHasZeroElectronicForce)
@@ -166,7 +163,6 @@ TEST_F(FixPIMDUVTSerialTest, QuadraticToyFixedPointHasZeroElectronicForce)
   EXPECT_NEAR(fix_value("cp", uvt.ne), 1.4, 1.0e-10);
   EXPECT_NEAR(fix_value("cp", uvt.ne_dot), 0.0, 1.0e-10);
   EXPECT_NEAR(fix_value("cp", uvt.dedn), 2.0, 1.0e-10);
-  EXPECT_NEAR(fix_value("cp", uvt.mu), 2.0, 1.0e-12);
 }
 
 TEST_F(FixPIMDUVTSerialTest, RejectsMissingMuKeyword)
@@ -184,7 +180,27 @@ TEST_F(FixPIMDUVTSerialTest, AcceptsZeroChemicalPotential)
   command("fix cp all pimd/uvt temp 1.0 Tdamp 0.5 mu 0.0 Udamp 0.5 "
           "ne 1.0 dedn v_derivative");
   command("run 0 post no");
-  EXPECT_DOUBLE_EQ(fix_value("cp", pimd_test::uvt_vector_indices().mu), 0.0);
+  EXPECT_DOUBLE_EQ(fix_value("cp", pimd_test::uvt_vector_indices().ne), 1.0);
+}
+
+TEST_F(FixPIMDUVTSerialTest, ElectronicOutputLayoutOmitsTargetMu)
+{
+  for (int tchain : {1, 3, 5}) {
+    setup_quadratic_system();
+    command("variable derivative equal 2.0");
+    command("fix cp all pimd/uvt temp 1.0 Tdamp 0.5 tchain " + std::to_string(tchain) +
+            " mu 2.0 Udamp 0.5 ne 1.8 ne_velocity 0.25 dedn v_derivative");
+    command("run 0 post no");
+    const auto indices = pimd_test::uvt_vector_indices(tchain);
+    auto *fix = lmp->modify->get_fix_by_id("cp");
+    int dim;
+    const double mass = *static_cast<double *>(fix->extract("ne_mass", dim));
+    EXPECT_EQ(fix->size_vector, 18 + 4 * tchain);
+    EXPECT_DOUBLE_EQ(fix_value("cp", indices.ne), 1.8);
+    EXPECT_NEAR(fix_value("cp", indices.ne_ke), 0.5 * mass * 0.25 * 0.25, 1.0e-12);
+    EXPECT_NEAR(fix_value("cp", indices.electronic_potential), -3.6, 1.0e-12);
+    command("clear");
+  }
 }
 
 TEST_F(FixPIMDUVTSerialTest, RejectsLegacyMuStartStopDampSyntax)
@@ -339,7 +355,6 @@ TEST(FixPIMDUVTMPI, PartitionedRunExercisesBeadExpansion)
   EXPECT_TRUE(std::isfinite(fix_value("cp", uvt.ne)));
   EXPECT_TRUE(std::isfinite(fix_value("cp", uvt.ne_dot)));
   EXPECT_TRUE(std::isfinite(fix_value("cp", uvt.dedn)));
-  EXPECT_NEAR(fix_value("cp", uvt.mu), 1.5, 1.0e-12);
   EXPECT_NE(fix_value("cp", uvt.dedn), 0.0);
 
   lammps_close(lmp);
@@ -445,7 +460,6 @@ TEST(FixPIMDUVTMPI, BeadAveragedQuadraticDerivativeAtFixedPoint)
   EXPECT_NEAR(fix_value("cp", uvt.ne), 1.7, 1.0e-10);
   EXPECT_NEAR(fix_value("cp", uvt.ne_dot), 0.0, 1.0e-10);
   EXPECT_NEAR(fix_value("cp", uvt.dedn), 1.5, 1.0e-10);
-  EXPECT_NEAR(fix_value("cp", uvt.mu), 1.5, 1.0e-12);
 
   lammps_close(lmp);
 }
@@ -493,7 +507,6 @@ TEST(FixPIMDUVTMPI, MultiRankPerBeadAveragesDerivativeOncePerBead)
   command("run 0 post no");
 
   EXPECT_NEAR(fix_value("cp", uvt.dedn), 1.5, 1.0e-12);
-  EXPECT_NEAR(fix_value("cp", uvt.mu), 1.5, 1.0e-12);
 
   lammps_close(lmp);
 }

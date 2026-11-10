@@ -33,9 +33,8 @@ using namespace LAMMPS_NS;
 /* ---------------------------------------------------------------------- */
 
 FixPIMDUVT::FixPIMDUVT(LAMMPS *lmp, int narg, char **arg) :
-    FixPIMDNVT(lmp, narg, arg, true), mu(-3.5), Ne(nullptr),
-    Ne_dot(nullptr), Ne_mass(nullptr), u_start(0.0), u_stop(0.0),
-    u_target(0.0), u_freq(0.0), u_period(0.0), ne_ecouple_work(0.0), dedn_name(nullptr),
+    FixPIMDNVT(lmp, narg, arg, true), mu(0.0), Ne(nullptr), Ne_dot(nullptr), Ne_mass(nullptr),
+    u_freq(0.0), u_period(0.0), ne_ecouple_work(0.0), dedn_name(nullptr),
     dedn_which(ArgInfo::NONE), dedn_index(0), dedn_var(-1), dedn_compute(nullptr),
     dedn_fix(nullptr), dedn_current(0.0)
 {
@@ -66,7 +65,7 @@ FixPIMDUVT::FixPIMDUVT(LAMMPS *lmp, int narg, char **arg) :
   }
 
   const int old_size = size_vector;
-  size_vector += 9;
+  size_vector += 8;
   delete[] extlist;
   extlist = new int[size_vector];
   for (int i = 0; i < old_size; i++) extlist[i] = 1;
@@ -91,10 +90,7 @@ bool FixPIMDUVT::parse_keyword(int narg, char **arg, int &i)
 {
   if (strcmp(arg[i], "mu") == 0) {
     if (i + 2 > narg) utils::missing_cmd_args(FLERR, fmt::format("fix {} mu", style), error);
-    u_start = utils::numeric(FLERR, arg[i + 1], false, lmp);
-    u_stop = u_start;
-    u_target = u_start;
-    mu = u_target;
+    mu = utils::numeric(FLERR, arg[i + 1], false, lmp);
     i += 2;
     return true;
   }
@@ -141,23 +137,13 @@ void FixPIMDUVT::setup_subclass_state()
 
 /* ---------------------------------------------------------------------- */
 
-void FixPIMDUVT::thermostat_step()
-{
-  if (!tstat_flag) return;
-
-  compute_mu_target();
-  FixPIMDNVT::thermostat_step();
-}
-
-/* ---------------------------------------------------------------------- */
-
 void FixPIMDUVT::b_step()
 {
   FixPIMDNVE::b_step();
 
   // Force kicks are half-steps for both OBABO and BAOAB.
   double dtfm = dtv / *Ne_mass;
-  if (universe->iworld == 0) *Ne_dot += dtfm * (-dedn_current + u_target);
+  if (universe->iworld == 0) *Ne_dot += dtfm * (-dedn_current + mu);
   MPI_Bcast(Ne_dot, 1, MPI_DOUBLE, 0, universe->uworld);
 }
 
@@ -245,12 +231,11 @@ double FixPIMDUVT::compute_subclass_vector(int n) const
   if (n == 0) return *Ne;
   if (n == 1) return *Ne_dot;
   if (n == 2) return dedn_current;
-  if (n == 3) return u_target;
-  if (n == 4) return 0.5 * (*Ne_mass) * (*Ne_dot) * (*Ne_dot);
-  if (n == 5) return -u_target * (*Ne);
-  if (n == 6) return ecouple_work;
-  if (n == 7) return ne_ecouple_work;
-  if (n == 8) return ecouple_work + ne_ecouple_work;
+  if (n == 3) return 0.5 * (*Ne_mass) * (*Ne_dot) * (*Ne_dot);
+  if (n == 4) return -mu * (*Ne);
+  if (n == 5) return ecouple_work;
+  if (n == 6) return ne_ecouple_work;
+  if (n == 7) return ecouple_work + ne_ecouple_work;
   return 0.0;
 }
 
@@ -271,17 +256,6 @@ void *FixPIMDUVT::extract(const char *str, int &dim)
   if (strcmp(str, "ne_mass") == 0) return Ne_mass;
   if (strcmp(str, "dedn") == 0) return &dedn_current;
   return FixPIMDNVT::extract(str, dim);
-}
-
-/* ---------------------------------------------------------------------- */
-
-void FixPIMDUVT::compute_mu_target()
-{
-  double delta = update->ntimestep - update->beginstep;
-  if (delta != 0.0) delta /= update->endstep - update->beginstep;
-
-  u_target = u_start + delta * (u_stop - u_start);
-  mu = u_target;
 }
 
 /* ---------------------------------------------------------------------- */

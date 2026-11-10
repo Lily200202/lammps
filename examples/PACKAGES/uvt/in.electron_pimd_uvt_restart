@@ -23,7 +23,7 @@ fix             cp all pimd/uvt method nmpimd thermostat NHC &
                 dedn v_dEdN
 
 thermo          50
-thermo_style    custom step temp etotal f_cp[23] f_cp[24] f_cp[25] f_cp[26]
+thermo_style    custom step temp etotal f_cp[23] f_cp[24] f_cp[25] v_mu_target
 thermo_modify   flush yes
 
 run             100
