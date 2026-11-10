@@ -99,6 +99,10 @@ The global fix vector starts with six physical outputs:
 #. electronic kinetic energy
 #. electronic potential contribution ``-mu*Ne``
 
+The same six quantities appear in the same order at entries 11 through 16
+of :doc:`fix pimd/uvt <fix_pimd_uvt>`, following its ten nuclear outputs.
+For PIMD, the derivative is reported separately for each bead.
+
 The regular Nose-Hoover vector follows, starting at entry 7. The total
 vector length is 6+4*M for a thermostat chain of length M. All six physical
 indices are independent of M. The temperature output is intensive and is

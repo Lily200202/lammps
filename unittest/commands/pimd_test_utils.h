@@ -33,10 +33,9 @@ inline int nuclear_vector_size(int tchain = kDefaultTChain)
   return kNuclearPrefixScalars + 4 * tchain;
 }
 
-inline UVTVectorIndices uvt_vector_indices(int tchain = kDefaultTChain)
+inline UVTVectorIndices uvt_vector_indices()
 {
-  const int prefix = nuclear_vector_size(tchain);
-  return {prefix, prefix + 1, prefix + 2, prefix + 3, prefix + 4};
+  return {10, 12, 13, 14, 15};
 }
 
 inline int lammps_fix_index(int zero_based_index)
@@ -52,9 +51,9 @@ inline double fix_value(void *lmp, const char *id, int index)
   return value;
 }
 
-inline std::string quadratic_dedn_variable(const char *fix_id = "cp", int tchain = kDefaultTChain)
+inline std::string quadratic_dedn_variable(const char *fix_id = "cp")
 {
-  const auto indices = uvt_vector_indices(tchain);
+  const auto indices = uvt_vector_indices();
   return "variable dEdN equal v_k_quad*(f_" + std::string(fix_id) + "[" +
       std::to_string(lammps_fix_index(indices.ne)) + "]-v_N0_quad)";
 }

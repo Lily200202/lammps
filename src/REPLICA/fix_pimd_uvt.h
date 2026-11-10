@@ -33,6 +33,7 @@ class FixPIMDUVT : public FixPIMDNVT {
   ~FixPIMDUVT() override;
   void post_force(int) override;
   double compute_scalar() override;
+  std::string get_thermo_colname(int) override;
   void *extract(const char *, int &) override;
 
  protected:
@@ -70,6 +71,7 @@ class FixPIMDUVT : public FixPIMDNVT {
   class Compute *dedn_compute;
   Fix *dedn_fix;
   double dedn_current;
+  double dedn_bead;
 };
 }    // namespace LAMMPS_NS
 

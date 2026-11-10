@@ -36,7 +36,7 @@ FixPIMDUVT::FixPIMDUVT(LAMMPS *lmp, int narg, char **arg) :
     FixPIMDNVT(lmp, narg, arg, true), mu(0.0), Ne(nullptr), Ne_dot(nullptr), Ne_mass(nullptr),
     u_freq(0.0), u_period(0.0), ne_ecouple_work(0.0), dedn_name(nullptr),
     dedn_which(ArgInfo::NONE), dedn_index(0), dedn_var(-1), dedn_compute(nullptr),
-    dedn_fix(nullptr), dedn_current(0.0)
+    dedn_fix(nullptr), dedn_current(0.0), dedn_bead(0.0)
 {
   // process keywords
 
@@ -64,12 +64,13 @@ FixPIMDUVT::FixPIMDUVT(LAMMPS *lmp, int narg, char **arg) :
     *Ne_mass = 0.0;
   }
 
-  const int old_size = size_vector;
-  size_vector += 8;
+  const int nuclear_size = nuclear_vector_size();
+  size_vector += 6;
   delete[] extlist;
   extlist = new int[size_vector];
-  for (int i = 0; i < old_size; i++) extlist[i] = 1;
-  for (int i = old_size; i < size_vector; i++) extlist[i] = 0;
+  // Keep nuclear estimators first, then six physical outputs, then the NHC.
+  for (int i = 0; i < size_vector; i++)
+    extlist[i] = (i < nuclear_size || i >= nuclear_size + 6) ? 1 : 0;
 
   u_freq = 1.0 / u_period;
 }
@@ -224,19 +225,36 @@ int FixPIMDUVT::unpack_subclass_restart(const double *list, int n)
 
 double FixPIMDUVT::compute_subclass_vector(int n) const
 {
-  const int nhc_size = tstat_flag ? 4 * mtchain : 0;
-  if (n < nhc_size) return FixPIMDNVT::compute_subclass_vector(n);
-  n -= nhc_size;
-
   if (n == 0) return *Ne;
-  if (n == 1) return *Ne_dot;
-  if (n == 2) return dedn_current;
-  if (n == 3) return 0.5 * (*Ne_mass) * (*Ne_dot) * (*Ne_dot);
-  if (n == 4) return -mu * (*Ne);
-  if (n == 5) return ecouple_work;
-  if (n == 6) return ne_ecouple_work;
-  if (n == 7) return ecouple_work + ne_ecouple_work;
-  return 0.0;
+  if (n == 1) {
+    // Convert the nuclear kinetic energy from PT to physical temperature.
+    // Count the shared electronic degree of freedom only once.
+    double local[3] = {2.0 * local_kinetic_energy_sum(), comm->me == 0 ? tdof : 0.0,
+                       universe->me == 0 ? (*Ne_mass) * (*Ne_dot) * (*Ne_dot) : 0.0};
+    double total[3];
+    MPI_Allreduce(local, total, 3, MPI_DOUBLE, MPI_SUM, universe->uworld);
+    return (total[0] * inverse_np + total[2]) / ((total[1] + 1.0) * force->boltz);
+  }
+  if (n == 2) return *Ne_dot;
+  if (n == 3) return dedn_bead;
+  if (n == 4) return 0.5 * (*Ne_mass) * (*Ne_dot) * (*Ne_dot);
+  if (n == 5) return -mu * (*Ne);
+  return FixPIMDNVT::compute_subclass_vector(n - 6);
+}
+
+/* ---------------------------------------------------------------------- */
+
+std::string FixPIMDUVT::get_thermo_colname(int n)
+{
+  if (n == -1) return FixPIMDNVT::get_thermo_colname(n);
+  const int physical_index = n - nuclear_vector_size();
+  if (physical_index == 0) return fmt::format("f_{}:Ne", id);
+  if (physical_index == 1) return fmt::format("f_{}:T_ins", id);
+  if (physical_index == 2) return fmt::format("f_{}:Ne_dot", id);
+  if (physical_index == 3) return fmt::format("f_{}:dEdN", id);
+  if (physical_index == 4) return fmt::format("f_{}:ke_Ne", id);
+  if (physical_index == 5) return fmt::format("f_{}:pe_mu", id);
+  return Fix::get_thermo_colname(n);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -316,7 +334,8 @@ void FixPIMDUVT::post_force(int vflag)
   // Evaluate on all ranks: the source may perform collective communication.
   // The source returns a global bead value; contribute it once per partition.
   modify->clearstep_compute();
-  double dedn_local = evaluate_dedn();
+  dedn_bead = evaluate_dedn();
+  double dedn_local = dedn_bead;
   modify->addstep_compute(update->ntimestep + 1);
   if (comm->me != 0) dedn_local = 0.0;
   double dedn_avg = 0.0;
