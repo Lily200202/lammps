@@ -98,6 +98,9 @@ command.
 Restrictions
 """"""""""""
 
+This fix requires :doc:`run_style verlet <run_style>` and does not
+support :doc:`fix dt/reset <fix_dt_reset>`.
+
 This fix currently supports only 3d systems.
 
 This fix requires an atom map, e.g. ``atom_modify map yes``, and consecutive atom IDs.

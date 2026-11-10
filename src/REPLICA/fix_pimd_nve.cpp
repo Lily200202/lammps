@@ -26,6 +26,7 @@
 #include "modify.h"
 #include "universe.h"
 #include "update.h"
+#include "utils.h"
 
 #include <cmath>
 #include <cstring>
@@ -271,6 +272,11 @@ int FixPIMDNVE::setmask()
 
 void FixPIMDNVE::init()
 {
+  if (!utils::strmatch(update->integrate_style, "^verlet"))
+    error->all(FLERR, "Fix {} requires run_style verlet", style);
+  if (!modify->get_fix_by_style("^dt/reset").empty())
+    error->all(FLERR, "Fix {} does not support fix dt/reset", style);
+
   if (atom->tag_consecutive() == 0)
     error->all(FLERR, "Atom IDs must be consecutive for fix {}", style);
   if (atom->map_style == Atom::MAP_NONE)
