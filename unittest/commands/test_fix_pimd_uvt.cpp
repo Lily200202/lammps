@@ -169,6 +169,24 @@ TEST_F(FixPIMDUVTSerialTest, QuadraticToyFixedPointHasZeroElectronicForce)
   EXPECT_NEAR(fix_value("cp", uvt.mu), 2.0, 1.0e-12);
 }
 
+TEST_F(FixPIMDUVTSerialTest, RejectsMissingMuKeyword)
+{
+  setup_quadratic_system();
+  command("variable derivative equal 0.0");
+  TEST_FAILURE("Missing mu keyword", command("fix cp all pimd/uvt temp 1.0 Tdamp 0.5 "
+                                           "Udamp 0.5 ne 1.0 dedn v_derivative"););
+}
+
+TEST_F(FixPIMDUVTSerialTest, AcceptsZeroChemicalPotential)
+{
+  setup_quadratic_system();
+  command("variable derivative equal 0.0");
+  command("fix cp all pimd/uvt temp 1.0 Tdamp 0.5 mu 0.0 Udamp 0.5 "
+          "ne 1.0 dedn v_derivative");
+  command("run 0 post no");
+  EXPECT_DOUBLE_EQ(fix_value("cp", pimd_test::uvt_vector_indices().mu), 0.0);
+}
+
 TEST_F(FixPIMDUVTSerialTest, RejectsLegacyMuStartStopDampSyntax)
 {
   setup_quadratic_system();

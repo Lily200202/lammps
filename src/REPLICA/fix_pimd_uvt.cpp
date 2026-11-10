@@ -33,7 +33,7 @@ using namespace LAMMPS_NS;
 /* ---------------------------------------------------------------------- */
 
 FixPIMDUVT::FixPIMDUVT(LAMMPS *lmp, int narg, char **arg) :
-    FixPIMDNVT(lmp, narg, arg, true), mu_flag(0), mu(-3.5), Ne(nullptr),
+    FixPIMDNVT(lmp, narg, arg, true), mu(-3.5), Ne(nullptr),
     Ne_dot(nullptr), Ne_mass(nullptr), u_start(0.0), u_stop(0.0),
     u_target(0.0), u_freq(0.0), u_period(0.0), ne_ecouple_work(0.0), dedn_name(nullptr),
     dedn_which(ArgInfo::NONE), dedn_index(0), dedn_var(-1), dedn_compute(nullptr),
@@ -41,14 +41,16 @@ FixPIMDUVT::FixPIMDUVT(LAMMPS *lmp, int narg, char **arg) :
 {
   // process keywords
 
+  bool mu_seen = false;
   for (int i = 3; i < narg;) {
+    if (strcmp(arg[i], "mu") == 0) mu_seen = true;
     if (!parse_keyword(narg, arg, i))
       error->all(FLERR, "Unknown keyword {} for fix {}", arg[i], style);
   }
 
   finish_nuclear_constructor_setup();
   if (method != NMPIMD) error->all(FLERR, "Fix {} only supports method nmpimd", style);
-  if (!mu_flag) error->all(FLERR, "Missing mu keyword for fix {}", style);
+  if (!mu_seen) error->all(FLERR, "Missing mu keyword for fix {}", style);
   if (!Ne) error->all(FLERR, "Missing ne keyword for fix {}", style);
   if (!dedn_name) error->all(FLERR, "Missing dedn keyword for fix {}", style);
   if (u_period <= 0.0)
@@ -93,7 +95,6 @@ bool FixPIMDUVT::parse_keyword(int narg, char **arg, int &i)
     u_stop = u_start;
     u_target = u_start;
     mu = u_target;
-    mu_flag = 1;
     i += 2;
     return true;
   }
