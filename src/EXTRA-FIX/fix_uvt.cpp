@@ -111,7 +111,7 @@ void release_uvt_args()
 
 FixUVT::FixUVT(LAMMPS *lmp, int narg, char **arg) :
     FixNH(lmp, uvt_argc(narg, arg), uvt_argv(narg, arg)),
-    u_start(0.0), u_stop(0.0), u_target(0.0), u_freq(0.0), ustat_flag(0),
+    u_start(0.0), u_stop(0.0), u_target(0.0), u_freq(0.0),
     Ne(0.0), Ne_dot(0.0), Ne_mass(0.0), dedn_name(nullptr), dedn_which(ArgInfo::NONE),
     dedn_index(0), dedn_var(-1), dedn_compute(nullptr), dedn_fix(nullptr), dedn_current(0.0)
 {
@@ -125,7 +125,6 @@ FixUVT::FixUVT(LAMMPS *lmp, int narg, char **arg) :
   for (int i = 3; i < narg;) {
     if (strcmp(arg[i], "mu") == 0) {
       if (i + 4 > narg) utils::missing_cmd_args(FLERR, fmt::format("fix {} mu", style), error);
-      ustat_flag = 1;
       mu_seen = true;
       u_start = utils::numeric(FLERR, arg[i + 1], false, lmp);
       u_target = u_start;
@@ -397,7 +396,7 @@ int FixUVT::size_restart_global()
 int FixUVT::pack_restart_data(double *list)
 {
   int n = FixNH::pack_restart_data(list);
-  list[n++] = ustat_flag;
+  list[n++] = 1.0;    // Preserve the electronic-state marker in the restart format.
   list[n++] = Ne;
   list[n++] = Ne_dot;
   return n;
