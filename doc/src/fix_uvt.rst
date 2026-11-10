@@ -3,8 +3,6 @@
 fix uvt command
 ===============
 
-.. versionadded:: TBD
-
 Syntax
 """"""
 
@@ -13,14 +11,16 @@ Syntax
    fix ID group-ID uvt temp Tstart Tstop Tdamp mu Mu Udamp tau_U ne Ne0 dedn source [keyword value ...]
 
 * ID, group-ID are documented in :doc:`fix <fix>` command
-* ``temp`` values = Tstart Tstop Tdamp
+* ``temp`` values = Tstart Tstop Tdamp (temperature, temperature, and time units)
 * ``mu`` value = constant chemical potential
-* ``Udamp`` value = positive electronic damping time
+* ``Udamp`` value = positive electronic damping time (time units)
 * ``ne`` value = initial electronic coordinate
 * ``dedn`` value = global scalar or vector reference used as dE/dN
 
 Optional keywords are the Nose-Hoover keywords supported by
-:doc:`fix nvt <fix_nh>`, plus ``ne_velocity``.
+:doc:`fix nvt <fix_nh>`. The additional ``ne_velocity`` keyword sets the
+initial electron-number velocity (electron number per unit time); its
+default is zero.
 
 Examples
 """"""""
@@ -71,8 +71,7 @@ The derivative is read once during setup, after the initial force calculation,
 and then in ``post_force`` after each force calculation.  The cached value
 is used by the second electronic velocity half-step and the first half-step
 of the next timestep.  This applies to both analytical variables and
-sources whose derivative is produced during force evaluation.  There is no
-``dedn_defer`` option.
+sources whose derivative is produced during force evaluation.
 
 If the source is produced by another fix in its ``post_force`` callback,
 define that fix before ``fix uvt`` so it updates the derivative first.
@@ -86,9 +85,7 @@ particle coordinates at the innermost level.  Derivative providers must
 supply the complete derivative at the outermost force stage.
 
 The ``mu`` target is constant throughout a run. ``Udamp`` has time units
-and must be positive, as in ``fix pimd/uvt``. The old three-value
-``mu Mustart Mustop Mudamp`` syntax is not supported; replace it with
-``mu Mu Udamp tau_U``. Chemical-potential ramps are not supported.
+and must be positive. Chemical-potential ramps are not supported.
 
 The global fix vector starts with six physical outputs:
 
@@ -108,10 +105,6 @@ vector length is 6+4*M for a thermostat chain of length M. All six physical
 indices are independent of M. The temperature output is intensive and is
 not normalized by atom count.
 
-The target ``mu`` is no longer a vector output. Electronic kinetic and
-potential energies are now entries 5 and 6 (previously 6 and 7), and the
-Nose-Hoover entries shift down by one. ``Ne`` remains entry 1.
-
 The first Nose-Hoover potential-energy entry includes all
 :math:`g+1` controlled DOF.  The fix scalar includes the combined chain
 energy plus the electronic kinetic and potential terms, without counting
@@ -121,6 +114,15 @@ The fix writes restart data for the Nose-Hoover state and electronic
 degree of freedom, so simulations may be continued with
 :doc:`read_restart <read_restart>` followed by the same ``fix uvt``
 command.
+
+Compatibility
+"""""""""""""
+
+Replace the legacy three-value ``mu Mustart Mustop Mudamp`` syntax with
+``mu Mu Udamp tau_U``. The target ``mu`` is no longer a vector output;
+electronic kinetic and potential energies are entries 5 and 6
+(previously 6 and 7). The Nose-Hoover entries start at 7, and ``Ne``
+remains entry 1.
 
 Restrictions
 """"""""""""

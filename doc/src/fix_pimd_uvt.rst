@@ -3,8 +3,6 @@
 fix pimd/uvt command
 ====================
 
-.. versionadded:: TBD
-
 Syntax
 """"""
 
@@ -15,16 +13,19 @@ Syntax
 * ID, group-ID are documented in :doc:`fix <fix>` command
 * ``method`` value = ``nmpimd``
 * ``thermostat`` value = ``NHC``
-* ``temp`` value = target temperature
-* ``Tdamp`` value = nuclear thermostat damping parameter
+* ``temp`` value = target temperature (temperature units)
+* ``Tdamp`` value = nuclear thermostat damping parameter (time units)
 * ``mu`` value = constant chemical potential
-* ``Udamp`` value = positive electronic damping time
+* ``Udamp`` value = positive electronic damping time (time units)
 * ``ne`` value = initial electronic coordinate
 * ``dedn`` value = global scalar or vector reference used as dE/dN
 
 Optional keywords include ``integrator``, ``drag``, ``fmass``,
 ``fmmode``, ``sp``, ``lj``, ``ne_velocity``, ``removecom``,
-``tchain``, ``tloop``, and ``tdof``.
+``tchain``, ``tloop``, and ``tdof``. The ``ne_velocity`` keyword sets the
+initial electron-number velocity (electron number per unit time); its
+default is zero. Other optional keywords are described on the
+:doc:`fix pimd <fix_pimd>` page.
 
 Examples
 """"""""
@@ -34,6 +35,10 @@ Examples
    variable dEdN equal 3.0*(f_cp[11]-1.2)
    fix cp all pimd/uvt method nmpimd thermostat NHC temp 0.8 Tdamp 0.2 &
           tchain 3 tloop 1 mu 1.5 Udamp 0.2 ne 1.8 dedn v_dEdN
+
+Launch the input file with two bead partitions using:
+
+.. code-block:: bash
 
    mpirun -np 2 lmp -partition 2x1 -in in.electron_pimd_uvt
 
@@ -74,26 +79,28 @@ counted once. For P=1, it has the same definition as the combined temperature
 reported by ``fix uvt``. The electronic kinetic energy and ``-mu*Ne`` are
 also reported in the physical representation.
 
-Entry 14 preserves the individual bead derivative; the bead average is still
-used for propagation and remains available through the C++ ``extract("dedn")``
-interface. Average the reported values over beads to compare with the target
-chemical potential. For classical ``fix uvt``, entry 4 reports the derivative
-of the single classical system.
+Entry 14 reports the individual bead derivative. Average these values
+over beads to compare with the target chemical potential; this average
+is used for propagation. For classical ``fix uvt``, entry 4 reports the
+derivative of the single classical system.
 
-The target chemical potential and the three thermostat-work entries are no
-longer vector outputs. The PIMD fix scalar retains its existing meaning:
-cumulative nuclear plus electronic thermostat work in the internal scaled
-ring-polymer representation. The classical UVT scalar instead reports an
-extended-energy contribution, as described on its documentation page.
-
-Input scripts using the old chain-dependent electronic indices must be
-updated. With ``tchain 3``, ``Ne`` moves from entry 23 to entry 11. Nuclear
-entries 1 through 10 are unchanged.
+The fix scalar reports cumulative nuclear plus electronic thermostat
+work in the internal scaled ring-polymer representation. The classical UVT
+scalar instead reports an extended-energy contribution, as described on its
+documentation page.
 
 The fix writes restart data for the nuclear thermostat state and the
 electronic degree of freedom, so simulations may be continued with
 :doc:`read_restart <read_restart>` followed by the same ``fix pimd/uvt``
 command.
+
+Compatibility
+"""""""""""""
+
+Update scripts using the old chain-dependent electronic indices. With
+``tchain 3``, ``Ne`` moves from entry 23 to entry 11; nuclear entries
+1 through 10 are unchanged. The target chemical potential and the three
+thermostat-work entries are no longer vector outputs.
 
 Restrictions
 """"""""""""
@@ -103,8 +110,7 @@ This fix currently supports only 3d systems.
 This fix requires an atom map, e.g. ``atom_modify map yes``, and consecutive atom IDs.
 All bead partitions must use the same number of processors.
 
-This fix requires one partition per bead.  In other words, the bead
-count must match ``universe->nworlds``.
+The bead count equals the number of LAMMPS partitions.
 
 This fix is a complete time integrator.  No other time-integration fix
 should be applied to the same atoms.
