@@ -31,21 +31,18 @@ class FixPIMDUVT : public FixPIMDNVT {
  public:
   FixPIMDUVT(class LAMMPS *, int, char **);
   ~FixPIMDUVT() override;
+  void post_force(int) override;
   double compute_scalar() override;
   void *extract(const char *, int &) override;
 
  protected:
   bool parse_keyword(int, char **, int &) override;
   void setup_subclass_state() override;
-  void after_force_transform_hook() override;
   void thermostat_step() override;
   void b_step() override;
   void qc_step() override;
 
   bool thermostat_chain_active() const override;
-  bool ne_thermostat_participates() const;
-  double ne_thermostat_chain_count() const;
-  double ne_target_current_share() const;
   double thermostat_extra_kinetic_energy() const override;
   void scale_ne_velocity(double);
   double chain0_target_energy() const override;
@@ -58,11 +55,9 @@ class FixPIMDUVT : public FixPIMDNVT {
   void compute_mu_target();
   void thermostat_extra_velocity_step() override;
   double evaluate_dedn();
-  void refresh_dedn_cache();
   void parse_dedn_source(const char *);
   void resolve_dedn_source();
 
-  int ustat_flag;
   int mu_flag;
   double mu;
   double *Ne;

@@ -327,6 +327,59 @@ TEST(FixPIMDUVTMPI, PartitionedRunExercisesBeadExpansion)
   lammps_close(lmp);
 }
 
+TEST(FixPIMDUVTMPI, InitialVectorDerivativeUsesBeadCoordinates)
+{
+  int nprocs = 0;
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  if (nprocs != 2) GTEST_SKIP() << "This test requires exactly 2 MPI ranks";
+
+  const auto uvt = pimd_test::uvt_vector_indices();
+
+  const char *args[] = {"LAMMPS_test", "-log", "none", "-partition", "2x1", "-echo",
+                        "screen",      "-nocite",       "-in",        "none", nullptr};
+  char **argv = (char **) args;
+  int argc = (sizeof(args) / sizeof(char *)) - 1;
+
+  void *lmp = nullptr;
+  ASSERT_NO_THROW(lmp = lammps_open(argc, argv, MPI_COMM_WORLD, nullptr));
+  ASSERT_NE(lmp, nullptr);
+
+  auto command = [lmp](const char *line) { lammps_command(lmp, line); };
+  auto fix_value = [lmp](const char *id, int index) { return pimd_test::fix_value(lmp, id, index); };
+
+  command("units lj");
+  command("atom_style atomic");
+  command("atom_modify map yes");
+  command("boundary p p p");
+  command("lattice sc 0.7");
+  command("region box block 0 2 0 2 0 2");
+  command("create_box 1 box");
+  command("create_atoms 1 box");
+  command("mass 1 1.0");
+  command("pair_style zero 2.5");
+  command("pair_coeff * *");
+  command("neighbor 0.3 bin");
+  command("neigh_modify every 1 delay 0 check yes");
+  command("timestep 0.002");
+  command("variable beadshift universe 0.0 0.15");
+  command("displace_atoms all move ${beadshift} 0.0 0.0 units box");
+  command("velocity all create 0.8 97531 mom yes rot no dist gaussian");
+  command("compute positions all reduce sum x y");
+  command("variable derivative vector c_positions");
+  command("fix cp all pimd/uvt temp 0.8 Tdamp 0.2 mu 1.5 Udamp 0.2 "
+          "ne 1.8 dedn v_derivative[1]");
+  command("run 0 post no");
+
+  auto *instance = static_cast<LAMMPS *>(lmp);
+  double local = 0.0;
+  for (int i = 0; i < instance->atom->nlocal; ++i) local += instance->atom->x[i][0];
+  double total;
+  MPI_Allreduce(&local, &total, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  EXPECT_NEAR(fix_value("cp", uvt.dedn), total / 2.0, 1.0e-10);
+
+  lammps_close(lmp);
+}
+
 TEST(FixPIMDUVTMPI, BeadAveragedQuadraticDerivativeAtFixedPoint)
 {
   int nprocs = 0;
