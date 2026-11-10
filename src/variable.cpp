@@ -47,6 +47,7 @@
 #include <functional>
 #include <limits>
 #include <unordered_map>
+#include <unordered_set>
 
 using namespace LAMMPS_NS;
 using namespace MathConst;
@@ -1359,14 +1360,33 @@ void Variable::compute_atom(int ivar, int igroup, double *result, int stride, in
 }
 
 /* ----------------------------------------------------------------------
-   invalidate dynamic vector caches before reevaluating a dependency chain
-   at unchanged timestep; literal vectors retain their stored values
+   refresh only dynamic vectors reached during an explicit fresh evaluation.
+   each dependency is refreshed once; restore the context on exceptions too.
 ------------------------------------------------------------------------- */
 
-void Variable::clearstep_vector()
+struct Variable::VectorRefresh {
+  Variable &variable;
+  VectorRefresh *previous;
+  std::unordered_set<int> visited;
+
+  explicit VectorRefresh(Variable &owner) : variable(owner), previous(owner.vector_refresh)
+  {
+    owner.vector_refresh = this;
+  }
+
+  ~VectorRefresh() { variable.vector_refresh = previous; }
+};
+
+double Variable::compute_equal_fresh(int ivar)
 {
-  for (auto &var : variables)
-    if (var.style == VECTOR && var.vec.dynamic) var.vec.currentstep = -1;
+  VectorRefresh refresh(*this);
+  return compute_equal(ivar);
+}
+
+int Variable::compute_vector_fresh(int ivar, double **result)
+{
+  VectorRefresh refresh(*this);
+  return compute_vector(ivar, result);
 }
 
 /* ----------------------------------------------------------------------
@@ -1397,6 +1417,9 @@ int Variable::compute_vector(int ivar, double **result)
   }
 
   // if vector already computed on this timestep, just return stored values
+
+  if (vector_refresh && vector_refresh->visited.insert(ivar).second)
+    var.vec.currentstep = -1;
 
   if (var.vec.currentstep == update->ntimestep) {
     *result = var.vec.values;

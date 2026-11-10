@@ -272,10 +272,6 @@ void FixUVT::post_force(int /*vflag*/)
   // Re-evaluate compute dependencies at the updated coordinates, even if
   // another consumer invoked them earlier in this timestep.
   modify->clearstep_compute();
-  // A new setup may follow coordinate changes without advancing the timestep.
-  // Clear vector dependencies too, including those wrapped in equal variables.
-  if (update->setupflag && dedn_which == ArgInfo::VARIABLE)
-    input->variable->clearstep_vector();
   dedn_current = evaluate_dedn();
   modify->addstep_compute(update->ntimestep + 1);
 }
@@ -532,9 +528,14 @@ void FixUVT::nhc_mu_integrate()
 double FixUVT::evaluate_dedn()
 {
   if (dedn_which == ArgInfo::VARIABLE) {
-    if (dedn_index == 0) return input->variable->compute_equal(dedn_var);
+    // Setup can follow coordinate changes at the same timestep. Refresh only
+    // vector dependencies reached while evaluating this derivative.
+    if (dedn_index == 0)
+      return update->setupflag ? input->variable->compute_equal_fresh(dedn_var) :
+                                input->variable->compute_equal(dedn_var);
     double *varvec;
-    int nvec = input->variable->compute_vector(dedn_var, &varvec);
+    int nvec = update->setupflag ? input->variable->compute_vector_fresh(dedn_var, &varvec) :
+                                  input->variable->compute_vector(dedn_var, &varvec);
     if (dedn_index > nvec)
       error->all(FLERR, "Variable {} for fix {} vector is accessed out-of-range{}", dedn_name,
                  style, utils::errorurl(20));

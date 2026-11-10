@@ -265,6 +265,7 @@ TEST_F(FixUVTTest, VariableDerivativeRefreshesAfterSameStepDisplacement)
     command("compute positions all reduce sum x y z");
     command("variable direct equal c_positions[1]");
     command("variable response vector c_positions");
+    command("variable unrelated vector 2.0*c_positions");
     command("variable constants vector [1,2,3]");
     command("variable nested vector v_response+0.0*v_constants");
     command("variable wrapped equal v_nested[1]");
@@ -273,9 +274,16 @@ TEST_F(FixUVTTest, VariableDerivativeRefreshesAfterSameStepDisplacement)
         SCOPED_TRACE(source);
         command(std::string("fix cp all uvt temp 1 1 0.5 mu 0 Udamp 0.5 ") +
                 "ne 1.0 ne_velocity 0.0 dedn " + source);
+        double unrelated_initial = 0.0;
         for (int iteration = 0; iteration < 3; ++iteration) {
             if (iteration) command("displace_atoms all move 0.01 0 0 units box");
             command("run 0 post no");
+            double *unrelated;
+            lmp->input->variable->compute_vector(lmp->input->variable->find("unrelated"), &unrelated);
+            if (iteration == 0)
+              unrelated_initial = unrelated[0];
+            else
+              EXPECT_DOUBLE_EQ(unrelated[0], unrelated_initial);
             double expected = 0.0;
             for (int i = 0; i < lmp->atom->nlocal; ++i) expected += lmp->atom->x[i][0];
             double total;

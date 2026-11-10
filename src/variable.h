@@ -53,7 +53,8 @@ class Variable : protected Pointers {
   double compute_equal(const std::string &);
   void compute_atom(int, int, double *, int, int);
   int compute_vector(int, double **);
-  void clearstep_vector();
+  double compute_equal_fresh(int);
+  int compute_vector_fresh(int, double **);
   void internal_set(int, double);
   int internal_create(char *, double);
 
@@ -94,6 +95,9 @@ class Variable : protected Pointers {
   std::vector<VarInfo> variables;
 
  private:
+  struct VectorRefresh;
+  VectorRefresh *vector_refresh = nullptr;
+
   int treetype;    // ATOM or VECTOR flag for formula evaluation
 
   class RanMars *randomequal;    // random number generator for equal-style vars

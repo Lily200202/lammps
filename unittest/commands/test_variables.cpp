@@ -114,6 +114,49 @@ protected:
     }
 };
 
+TEST_F(VariableTest, FreshEvaluationPreservesUnrelatedCaches)
+{
+    command("variable scale internal 1.0");
+    command("variable literal vector [1,2]");
+    command("variable response vector v_scale*v_literal");
+    command("variable unrelated vector 2.0*v_scale*v_literal");
+    command("variable wrapped equal sum(v_response)");
+    double *values;
+    const int response = variable->find("response");
+    const int unrelated = variable->find("unrelated");
+    ASSERT_EQ(variable->compute_vector(unrelated, &values), 2);
+    EXPECT_DOUBLE_EQ(values[0], 2.0);
+
+    variable->internal_set(variable->find("scale"), 3.0);
+    ASSERT_EQ(variable->compute_vector_fresh(response, &values), 2);
+    EXPECT_DOUBLE_EQ(values[0], 3.0);
+    EXPECT_DOUBLE_EQ(values[1], 6.0);
+    variable->internal_set(variable->find("scale"), 4.0);
+    EXPECT_DOUBLE_EQ(variable->compute_equal_fresh(variable->find("wrapped")), 12.0);
+    ASSERT_EQ(variable->compute_vector(unrelated, &values), 2);
+    EXPECT_DOUBLE_EQ(values[0], 2.0);
+    EXPECT_DOUBLE_EQ(values[1], 4.0);
+
+    command("variable invalid equal 1/0");
+    EXPECT_ANY_THROW(variable->compute_equal_fresh(variable->find("invalid")));
+    variable->internal_set(variable->find("scale"), 5.0);
+    ASSERT_EQ(variable->compute_vector(response, &values), 2);
+    EXPECT_DOUBLE_EQ(values[0], 4.0);
+}
+
+TEST_F(VariableTest, FreshEvaluationReusesRepeatedVectorDependencies)
+{
+    command("variable literal vector [1,2]");
+    command("variable draws vector random(0.0,1.0,19713)*v_literal");
+    command("variable difference vector v_draws-v_draws");
+    for (int iteration = 0; iteration < 3; ++iteration) {
+        double *values;
+        ASSERT_EQ(variable->compute_vector_fresh(variable->find("difference"), &values), 2);
+        EXPECT_DOUBLE_EQ(values[0], 0.0);
+        EXPECT_DOUBLE_EQ(values[1], 0.0);
+    }
+}
+
 TEST_F(VariableTest, CreateDelete)
 {
     file_vars();
