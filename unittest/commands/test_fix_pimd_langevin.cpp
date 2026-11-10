@@ -641,6 +641,45 @@ TEST(FixPIMDLangevinMPI, NMPIMDNPTBZP)
   expect_all_finite(handle.lmp, "cp");
 }
 
+TEST(FixPIMDLangevinMPI, AnisotropicBarostatStateMatchesAcrossPartitions)
+{
+  if (!has_exact_procs(4)) GTEST_SKIP() << "This test requires exactly 4 MPI ranks";
+  for (const char *partition : {"4x1", "2x2"}) {
+    for (const char *integrator : {"obabo", "baoab"}) {
+      for (const char *ensemble : {"npt", "nph"}) {
+        SCOPED_TRACE(std::string(partition) + " " + integrator + " " + ensemble);
+        PartitionedLammpsHandle handle;
+        handle.lmp = open_partitioned_lammps(4, partition);
+        ASSERT_NE(handle.lmp, nullptr);
+        setup_barostat_system(handle.lmp);
+        lammps_command(handle.lmp,
+                       (std::string("fix cp all pimd/langevin method nmpimd ensemble ") +
+                        ensemble + " integrator " + integrator +
+                        " temp 0.8 thermostat PILE_L 1234 tau 1.0 aniso 1.0 "
+                        "barostat BZP taup 1.0 fixcom no").c_str());
+        lammps_command(handle.lmp, "run 3 post no");
+
+        // Compare the public barostat diagnostics and the serialized state.
+        // Nuclear bead energies are intentionally not compared across modes.
+        double local[11];
+        for (int i = 0; i < 3; ++i) local[i] = fix_value(handle.lmp, "cp", 10 + i);
+        local[3] = fix_value(handle.lmp, "cp", 13);
+        local[4] = fix_value(handle.lmp, "cp", 16);
+        auto *fix = static_cast<FixPIMDLangevin *>(
+            as_lammps(handle.lmp)->modify->get_fix_by_id("cp"));
+        EXPECT_EQ(fix->pack_base_restart(local + 5), 6);
+        double minimum[11], maximum[11];
+        MPI_Allreduce(local, minimum, 11, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce(local, maximum, 11, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        for (int i = 0; i < 11; ++i) {
+          EXPECT_TRUE(std::isfinite(local[i]));
+          EXPECT_NEAR(minimum[i], maximum[i], 1.0e-12) << "field " << i;
+        }
+      }
+    }
+  }
+}
+
 TEST(FixPIMDLangevinMPI, NMPIMDNPTMTTK)
 {
   if (!has_exact_procs(4)) GTEST_SKIP() << "This test requires exactly 4 MPI ranks";
