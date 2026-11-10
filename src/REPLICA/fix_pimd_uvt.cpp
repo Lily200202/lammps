@@ -334,6 +334,10 @@ void FixPIMDUVT::post_force(int vflag)
   // Evaluate on all ranks: the source may perform collective communication.
   // The source returns a global bead value; contribute it once per partition.
   modify->clearstep_compute();
+  // A new setup may follow coordinate changes without advancing the timestep.
+  // Clear vector dependencies too, including those wrapped in equal variables.
+  if (update->setupflag && dedn_which == ArgInfo::VARIABLE)
+    input->variable->clearstep_vector();
   dedn_bead = evaluate_dedn();
   double dedn_local = dedn_bead;
   modify->addstep_compute(update->ntimestep + 1);

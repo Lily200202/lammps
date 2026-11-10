@@ -53,6 +53,7 @@ class Variable : protected Pointers {
   double compute_equal(const std::string &);
   void compute_atom(int, int, double *, int, int);
   int compute_vector(int, double **);
+  void clearstep_vector();
   void internal_set(int, double);
   int internal_create(char *, double);
 

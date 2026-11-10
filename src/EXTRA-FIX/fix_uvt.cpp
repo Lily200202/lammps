@@ -272,6 +272,10 @@ void FixUVT::post_force(int /*vflag*/)
   // Re-evaluate compute dependencies at the updated coordinates, even if
   // another consumer invoked them earlier in this timestep.
   modify->clearstep_compute();
+  // A new setup may follow coordinate changes without advancing the timestep.
+  // Clear vector dependencies too, including those wrapped in equal variables.
+  if (update->setupflag && dedn_which == ArgInfo::VARIABLE)
+    input->variable->clearstep_vector();
   dedn_current = evaluate_dedn();
   modify->addstep_compute(update->ntimestep + 1);
 }

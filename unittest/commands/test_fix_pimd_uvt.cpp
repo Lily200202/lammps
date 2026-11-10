@@ -105,6 +105,36 @@ TEST_F(FixPIMDUVTSerialTest, ComputeDerivativeStaysCurrentThroughVariable)
   }
 }
 
+TEST_F(FixPIMDUVTSerialTest, VariableDerivativeRefreshesAfterSameStepDisplacement)
+{
+  setup_quadratic_system();
+  command("compute positions all reduce sum x y z");
+  command("variable direct equal c_positions[1]");
+  command("variable response vector c_positions");
+  command("variable constants vector [1,2,3]");
+  command("variable nested vector v_response+0.0*v_constants");
+  command("variable wrapped equal v_nested[1]");
+  for (const char *source : {"v_direct", "v_response[1]", "v_nested[1]", "v_wrapped",
+                           "v_constants[1]"}) {
+    SCOPED_TRACE(source);
+    command(std::string("fix cp all pimd/uvt temp 1.0 Tdamp 0.5 mu 0 Udamp 0.5 ") +
+            "ne 1.0 ne_velocity 0.0 dedn " + source);
+    for (int iteration = 0; iteration < 3; ++iteration) {
+      if (iteration) command("displace_atoms all move 0.01 0 0 units box");
+      command("run 0 post no");
+      double expected = 0.0;
+      for (int i = 0; i < lmp->atom->nlocal; ++i) expected += lmp->atom->x[i][0];
+      double total;
+      MPI_Allreduce(&expected, &total, 1, MPI_DOUBLE, MPI_SUM, lmp->world);
+      if (std::string(source) == "v_constants[1]") total = 1.0;
+      auto *fix = lmp->modify->get_fix_by_id("cp");
+      int dim;
+      EXPECT_NEAR(*static_cast<double *>(fix->extract("dedn", dim)), total, 1.0e-10);
+    }
+    command("unfix cp");
+  }
+}
+
 TEST_F(FixPIMDUVTSerialTest, VariableDerivativeSchedulesPerAtomEnergy)
 {
   setup_quadratic_system();
@@ -395,7 +425,7 @@ TEST(FixPIMDUVTMPI, PartitionedRunExercisesBeadExpansion)
   lammps_close(lmp);
 }
 
-TEST(FixPIMDUVTMPI, InitialVectorDerivativeUsesBeadCoordinates)
+TEST(FixPIMDUVTMPI, VectorDerivativeUsesCurrentBeadCoordinates)
 {
   int nprocs = 0;
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
@@ -436,17 +466,19 @@ TEST(FixPIMDUVTMPI, InitialVectorDerivativeUsesBeadCoordinates)
   command("variable derivative vector c_positions");
   command("fix cp all pimd/uvt temp 0.8 Tdamp 0.2 mu 1.5 Udamp 0.2 "
           "ne 1.8 dedn v_derivative[1]");
-  command("run 0 post no");
-
-  auto *instance = static_cast<LAMMPS *>(lmp);
-  double local = 0.0;
-  for (int i = 0; i < instance->atom->nlocal; ++i) local += instance->atom->x[i][0];
-  double total;
-  MPI_Allreduce(&local, &total, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  EXPECT_NEAR(fix_value("cp", uvt.dedn), local, 1.0e-10);
-  int dim;
-  auto *fix = instance->modify->get_fix_by_id("cp");
-  EXPECT_NEAR(*static_cast<double *>(fix->extract("dedn", dim)), total / 2.0, 1.0e-10);
+  for (int iteration = 0; iteration < 3; ++iteration) {
+    if (iteration) command("displace_atoms all move 0.01 0 0 units box");
+    command("run 0 post no");
+    auto *instance = static_cast<LAMMPS *>(lmp);
+    double local = 0.0;
+    for (int i = 0; i < instance->atom->nlocal; ++i) local += instance->atom->x[i][0];
+    double total;
+    MPI_Allreduce(&local, &total, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    EXPECT_NEAR(fix_value("cp", uvt.dedn), local, 1.0e-10);
+    int dim;
+    auto *fix = instance->modify->get_fix_by_id("cp");
+    EXPECT_NEAR(*static_cast<double *>(fix->extract("dedn", dim)), total / 2.0, 1.0e-10);
+  }
 
   lammps_close(lmp);
 }

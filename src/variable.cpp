@@ -1359,6 +1359,17 @@ void Variable::compute_atom(int ivar, int igroup, double *result, int stride, in
 }
 
 /* ----------------------------------------------------------------------
+   invalidate dynamic vector caches before reevaluating a dependency chain
+   at unchanged timestep; literal vectors retain their stored values
+------------------------------------------------------------------------- */
+
+void Variable::clearstep_vector()
+{
+  for (auto &var : variables)
+    if (var.style == VECTOR && var.vec.dynamic) var.vec.currentstep = -1;
+}
+
+/* ----------------------------------------------------------------------
    compute result of vector-style variable evaluation
    return length of vector and result pointer to vector values
      if length == 0 or -1 (mismatch), generate an error

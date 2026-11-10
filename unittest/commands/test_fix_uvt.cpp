@@ -259,6 +259,34 @@ TEST_F(FixUVTTest, RestartRestoresElectronState)
     EXPECT_NEAR(fix_value("cp", 4), energy_before, 1.0e-10);
 }
 
+TEST_F(FixUVTTest, VariableDerivativeRefreshesAfterSameStepDisplacement)
+{
+    setup_quadratic_system();
+    command("compute positions all reduce sum x y z");
+    command("variable direct equal c_positions[1]");
+    command("variable response vector c_positions");
+    command("variable constants vector [1,2,3]");
+    command("variable nested vector v_response+0.0*v_constants");
+    command("variable wrapped equal v_nested[1]");
+    for (const char *source : {"v_direct", "v_response[1]", "v_nested[1]", "v_wrapped",
+                               "v_constants[1]"}) {
+        SCOPED_TRACE(source);
+        command(std::string("fix cp all uvt temp 1 1 0.5 mu 0 Udamp 0.5 ") +
+                "ne 1.0 ne_velocity 0.0 dedn " + source);
+        for (int iteration = 0; iteration < 3; ++iteration) {
+            if (iteration) command("displace_atoms all move 0.01 0 0 units box");
+            command("run 0 post no");
+            double expected = 0.0;
+            for (int i = 0; i < lmp->atom->nlocal; ++i) expected += lmp->atom->x[i][0];
+            double total;
+            MPI_Allreduce(&expected, &total, 1, MPI_DOUBLE, MPI_SUM, lmp->world);
+            if (std::string(source) == "v_constants[1]") total = 1.0;
+            EXPECT_NEAR(fix_value("cp", 3), total, 1.0e-10);
+        }
+        command("unfix cp");
+    }
+}
+
 TEST_F(FixUVTTest, ExtractCurrentResponseReportsCurrentDEDN)
 {
     setup_quadratic_system();
