@@ -58,7 +58,6 @@ class FixPIMDUVT : public FixPIMDNVT {
   void parse_dedn_source(const char *);
   void resolve_dedn_source();
 
-  int mu_flag;
   double mu;
   double *Ne;
   double *Ne_dot;
