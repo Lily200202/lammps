@@ -377,7 +377,6 @@ void FixPIMDNVE::setup(int vflag)
   } else {
     error->universe_all(FLERR, fmt::format("Unknown method parameter for fix {}", style));
   }
-  after_force_transform_hook();
   collect_xc();
   compute_spring_energy();
   compute_t_prim();
@@ -493,7 +492,6 @@ void FixPIMDNVE::post_force(int /*flag*/)
     inter_replica_comm(atom->f);
     nmpimd_transform(normal_mode_transform_buffer(), atom->f, M_x2xp[universe->iworld]);
   }
-  after_force_transform_hook();
 
   c_pe->addstep(update->ntimestep + 1);
   c_press->addstep(update->ntimestep + 1);
@@ -511,10 +509,6 @@ void FixPIMDNVE::end_of_step()
 /* ---------------------------------------------------------------------- */
 
 void FixPIMDNVE::setup_subclass_state() {}
-
-/* ---------------------------------------------------------------------- */
-
-void FixPIMDNVE::after_force_transform_hook() {}
 
 /* ---------------------------------------------------------------------- */
 

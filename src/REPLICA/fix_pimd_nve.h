@@ -145,7 +145,6 @@ class FixPIMDNVE : public Fix {
   void compute_p_cv();
 
   virtual void setup_subclass_state();
-  virtual void after_force_transform_hook();
   virtual int subclass_restart_size() const;
   virtual int pack_subclass_restart(double *, int) const;
   virtual int unpack_subclass_restart(const double *, int);

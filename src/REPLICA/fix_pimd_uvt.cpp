@@ -33,7 +33,7 @@ using namespace LAMMPS_NS;
 /* ---------------------------------------------------------------------- */
 
 FixPIMDUVT::FixPIMDUVT(LAMMPS *lmp, int narg, char **arg) :
-    FixPIMDNVT(lmp, narg, arg, true), ustat_flag(1), mu_flag(0), mu(-3.5), Ne(nullptr),
+    FixPIMDNVT(lmp, narg, arg, true), mu_flag(0), mu(-3.5), Ne(nullptr),
     Ne_dot(nullptr), Ne_mass(nullptr), u_start(0.0), u_stop(0.0),
     u_target(0.0), u_freq(0.0), u_period(0.0), ne_ecouple_work(0.0), dedn_name(nullptr),
     dedn_which(ArgInfo::NONE), dedn_index(0), dedn_var(-1), dedn_compute(nullptr),
@@ -140,13 +140,6 @@ void FixPIMDUVT::setup_subclass_state()
 
 /* ---------------------------------------------------------------------- */
 
-void FixPIMDUVT::after_force_transform_hook()
-{
-  if (ustat_flag) refresh_dedn_cache();
-}
-
-/* ---------------------------------------------------------------------- */
-
 void FixPIMDUVT::thermostat_step()
 {
   if (!tstat_flag) return;
@@ -161,12 +154,10 @@ void FixPIMDUVT::b_step()
 {
   FixPIMDNVE::b_step();
 
-  if (ustat_flag) {
-    // Force kicks are half-steps for both OBABO and BAOAB.
-    double dtfm = dtv / *Ne_mass;
-    if (universe->iworld == 0) *Ne_dot += dtfm * (-dedn_current + u_target);
-    MPI_Bcast(Ne_dot, 1, MPI_DOUBLE, 0, universe->uworld);
-  }
+  // Force kicks are half-steps for both OBABO and BAOAB.
+  double dtfm = dtv / *Ne_mass;
+  if (universe->iworld == 0) *Ne_dot += dtfm * (-dedn_current + u_target);
+  MPI_Bcast(Ne_dot, 1, MPI_DOUBLE, 0, universe->uworld);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -175,10 +166,8 @@ void FixPIMDUVT::qc_step()
 {
   FixPIMDNVE::qc_step();
 
-  if (ustat_flag) {
-    if (universe->iworld == 0) *Ne += dtv * (*Ne_dot);
-    MPI_Bcast(Ne, 1, MPI_DOUBLE, 0, universe->uworld);
-  }
+  if (universe->iworld == 0) *Ne += dtv * (*Ne_dot);
+  MPI_Bcast(Ne, 1, MPI_DOUBLE, 0, universe->uworld);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -190,35 +179,9 @@ bool FixPIMDUVT::thermostat_chain_active() const
 
 /* ---------------------------------------------------------------------- */
 
-bool FixPIMDUVT::ne_thermostat_participates() const
-{
-  return ustat_flag;
-}
-
-/* ---------------------------------------------------------------------- */
-
-double FixPIMDUVT::ne_thermostat_chain_count() const
-{
-  if (!ustat_flag) return 0.0;
-  return static_cast<double>(np);
-}
-
-/* ---------------------------------------------------------------------- */
-
-double FixPIMDUVT::ne_target_current_share() const
-{
-  const double chain_count = ne_thermostat_chain_count();
-  if (chain_count <= 0.0 || !ne_thermostat_participates()) return 0.0;
-  return static_cast<double>(np) * force->boltz * temp / chain_count;
-}
-
-/* ---------------------------------------------------------------------- */
-
 double FixPIMDUVT::thermostat_extra_kinetic_energy() const
 {
-  const double chain_count = ne_thermostat_chain_count();
-  if (chain_count <= 0.0 || !ne_thermostat_participates()) return 0.0;
-  return static_cast<double>(np) * (*Ne_mass) * (*Ne_dot) * (*Ne_dot) / chain_count;
+  return (*Ne_mass) * (*Ne_dot) * (*Ne_dot);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -235,26 +198,25 @@ void FixPIMDUVT::scale_ne_velocity(double scale_factor)
 
 double FixPIMDUVT::chain0_target_energy() const
 {
-  return FixPIMDNVT::chain0_target_energy() + ne_target_current_share();
+  return FixPIMDNVT::chain0_target_energy() + force->boltz * temp;
 }
 
 /* ---------------------------------------------------------------------- */
 
 int FixPIMDUVT::subclass_restart_size() const
 {
-  return 1 + (ustat_flag ? 3 : 0);
+  return 4;
 }
 
 /* ---------------------------------------------------------------------- */
 
 int FixPIMDUVT::pack_subclass_restart(double *list, int n) const
 {
-  list[n++] = ustat_flag;
-  if (ustat_flag) {
-    list[n++] = *Ne;
-    list[n++] = *Ne_dot;
-    list[n++] = ne_ecouple_work;
-  }
+  // Preserve the enabled flag in the existing restart format.
+  list[n++] = 1.0;
+  list[n++] = *Ne;
+  list[n++] = *Ne_dot;
+  list[n++] = ne_ecouple_work;
   return n;
 }
 
@@ -263,7 +225,7 @@ int FixPIMDUVT::pack_subclass_restart(double *list, int n) const
 int FixPIMDUVT::unpack_subclass_restart(const double *list, int n)
 {
   int flag = static_cast<int>(list[n++]);
-  if (flag && ustat_flag) {
+  if (flag) {
     *Ne = list[n++];
     *Ne_dot = list[n++];
     ne_ecouple_work = list[n++];
@@ -372,8 +334,10 @@ double FixPIMDUVT::evaluate_dedn()
 
 /* ---------------------------------------------------------------------- */
 
-void FixPIMDUVT::refresh_dedn_cache()
+void FixPIMDUVT::post_force(int vflag)
 {
+  FixPIMDNVE::post_force(vflag);
+
   // Evaluate on all ranks: the source may perform collective communication.
   // The source returns a global bead value; contribute it once per partition.
   modify->clearstep_compute();
