@@ -182,6 +182,10 @@ if(PKG_REPLICA)
                                       FixPIMDLangevinRestartTest.NMPIMDNPTBZPRestartContinuation:
                                       FixPIMDLangevinExpectedErrorTest.PIMDRejectsMultipleRanksPerBead)
 
+  add_mpi_test(NAME FixPIMDLangevinAnisotropic NUM_PROCS 4
+               COMMAND $<TARGET_FILE:test_fix_pimd_langevin>
+                       --gtest_filter=FixPIMDLangevinMPI.AnisotropicBarostatStateMatchesAcrossPartitions)
+
   add_executable(test_fix_pimd_langevin_bosonic test_fix_pimd_langevin_bosonic.cpp)
   target_link_libraries(test_fix_pimd_langevin_bosonic PRIVATE lammps GTest::GMock)
   add_mpi_test(NAME FixPIMDLangevinBosonic NUM_PROCS 4

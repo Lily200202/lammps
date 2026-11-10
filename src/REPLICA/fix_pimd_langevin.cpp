@@ -432,6 +432,8 @@ void FixPIMDLangevin::press_v_step()
         }
       }
     }
+    // Replicate the centroid's completed update for output and restart state.
+    MPI_Bcast(vw, 3, MPI_DOUBLE, 0, universe->uworld);
   }
 }
 
