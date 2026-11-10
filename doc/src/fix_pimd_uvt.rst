@@ -17,8 +17,8 @@ Syntax
 * ``thermostat`` value = ``NHC``
 * ``temp`` value = target temperature
 * ``Tdamp`` value = nuclear thermostat damping parameter
-* ``mu`` value = target chemical potential
-* ``Udamp`` value = electronic thermostat damping parameter
+* ``mu`` value = constant chemical potential
+* ``Udamp`` value = positive electronic damping time
 * ``ne`` value = initial electronic coordinate
 * ``dedn`` value = global scalar or vector reference used as dE/dN
 
@@ -31,7 +31,7 @@ Examples
 
 .. code-block:: LAMMPS
 
-   variable dEdN equal 3.0*(f_cp[23]-1.2)
+   variable dEdN equal 3.0*(f_cp[11]-1.2)
    fix cp all pimd/uvt method nmpimd thermostat NHC temp 0.8 Tdamp 0.2 &
           tchain 3 tloop 1 mu 1.5 Udamp 0.2 ne 1.8 dedn v_dEdN
 
@@ -52,13 +52,43 @@ provides a global vector, an entry can be selected with the usual
 ``[index]`` syntax.  ``dEdN`` is bead averaged before updating the
 global electronic coordinate.
 
-The electronic coordinate is exposed through the global fix vector.
-The first 10 entries are the path-integral energy and estimator outputs,
-followed by ``4*tchain`` thermostat entries and then nine uVT entries:
-``Ne``, ``Ne_dot``, ``dEdN``, ``mu``, the electronic kinetic energy,
-the electronic potential contribution, the nuclear thermostat work, the
-electronic thermostat work, and their sum.  For ``tchain 3``, ``Ne``,
-``Ne_dot``, ``dEdN``, and ``mu`` are ``f_ID[23]`` through ``f_ID[26]``.
+The global fix vector starts with the 10 shared nuclear energy and estimator
+outputs of :doc:`fix pimd/nve <fix_pimd>`. The next six entries match the
+physical outputs of :doc:`fix uvt <fix_uvt>`, in the same order:
+
+#. entry 11: electron number ``Ne``
+#. entry 12: combined instantaneous physical temperature ``T_ins``
+#. entry 13: electron-number velocity ``Ne_dot``
+#. entry 14: this bead's energy derivative ``dEdN``
+#. entry 15: electronic kinetic energy
+#. entry 16: electronic potential contribution ``-mu*Ne``
+
+These six indices do not depend on ``tchain``. The ``4*tchain`` NHC outputs
+follow, starting at entry 17, so the total vector length is ``16+4*tchain``.
+The physical outputs are not normalized by atom count. Nuclear and NHC
+outputs retain their inherited normalization.
+
+The temperature combines nuclear kinetic energy converted from the internal
+scaled-temperature representation with the shared electronic kinetic energy,
+counted once. For P=1, it has the same definition as the combined temperature
+reported by ``fix uvt``. The electronic kinetic energy and ``-mu*Ne`` are
+also reported in the physical representation.
+
+Entry 14 preserves the individual bead derivative; the bead average is still
+used for propagation and remains available through the C++ ``extract("dedn")``
+interface. Average the reported values over beads to compare with the target
+chemical potential. For classical ``fix uvt``, entry 4 reports the derivative
+of the single classical system.
+
+The target chemical potential and the three thermostat-work entries are no
+longer vector outputs. The PIMD fix scalar retains its existing meaning:
+cumulative nuclear plus electronic thermostat work in the internal scaled
+ring-polymer representation. The classical UVT scalar instead reports an
+extended-energy contribution, as described on its documentation page.
+
+Input scripts using the old chain-dependent electronic indices must be
+updated. With ``tchain 3``, ``Ne`` moves from entry 23 to entry 11. Nuclear
+entries 1 through 10 are unchanged.
 
 The fix writes restart data for the nuclear thermostat state and the
 electronic degree of freedom, so simulations may be continued with

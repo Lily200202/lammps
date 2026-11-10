@@ -45,7 +45,7 @@ class ComputeTempUVTTest : public LAMMPSTest {
     command("pair_coeff * *");
     command("velocity all set 1 2 3");
     command("variable deriv equal 0.0");
-    command("fix cp all uvt temp 1 1 0.5 mu 0 0 0.5 ne 1 ne_velocity 2 dedn v_deriv");
+    command("fix cp all uvt temp 1 1 0.5 mu 0 Udamp 0.5 ne 1 ne_velocity 2 dedn v_deriv");
     command("compute nuclear all temp");
     command("compute combined all temp/uvt cp");
     command("run 0 post no");
@@ -78,10 +78,10 @@ TEST_F(ComputeTempUVTTest, CombinedScalarAndNuclearTensor)
 TEST_F(ComputeTempUVTTest, FixVectorReportsCombinedTemperature)
 {
   auto *fix = lmp->modify->get_fix_by_id("cp");
-  ASSERT_EQ(fix->size_vector, 19);
+  ASSERT_EQ(fix->size_vector, 18);
   EXPECT_DOUBLE_EQ(fix->compute_vector(0), 1.0);
-  EXPECT_DOUBLE_EQ(fix->compute_vector(5), 1.5);
-  EXPECT_DOUBLE_EQ(fix->compute_vector(6), 0.0);
+  EXPECT_DOUBLE_EQ(fix->compute_vector(4), 1.5);
+  EXPECT_DOUBLE_EQ(fix->compute_vector(5), 0.0);
   EXPECT_DOUBLE_EQ(fix->compute_vector(1), 31.0 / 4.0);
   EXPECT_EQ(fix->get_thermo_colname(1), "f_cp:T_ins");
   command("velocity all set 2 0 0");
@@ -98,22 +98,21 @@ TEST_F(ComputeTempUVTTest, PhysicalOutputIndicesAreIndependentOfChainLength)
 {
   for (const int chain : {1, 3, 5}) {
     command("unfix cp");
-    command("fix cp all uvt temp 1 1 0.5 mu 0 0 0.5 ne 1 ne_velocity 2 "
+    command("fix cp all uvt temp 1 1 0.5 mu 0 Udamp 0.5 ne 1 ne_velocity 2 "
             "dedn v_deriv tchain " + std::to_string(chain));
     command("run 0 post no");
     auto *fix = dynamic_cast<FixUVT *>(lmp->modify->get_fix_by_id("cp"));
     ASSERT_NE(fix, nullptr);
-    EXPECT_EQ(fix->size_vector, 7 + 4 * chain);
+    EXPECT_EQ(fix->size_vector, 6 + 4 * chain);
     EXPECT_DOUBLE_EQ(fix->compute_vector(0), 1.0);
     EXPECT_DOUBLE_EQ(fix->compute_vector(1), 31.0 / 4.0);
     EXPECT_DOUBLE_EQ(fix->compute_vector(2), 2.0);
     EXPECT_DOUBLE_EQ(fix->compute_vector(3), 0.0);
-    EXPECT_DOUBLE_EQ(fix->compute_vector(4), 0.0);
-    EXPECT_DOUBLE_EQ(fix->compute_vector(5), 1.5);
-    EXPECT_DOUBLE_EQ(fix->compute_vector(6), 0.0);
+    EXPECT_DOUBLE_EQ(fix->compute_vector(4), 1.5);
+    EXPECT_DOUBLE_EQ(fix->compute_vector(5), 0.0);
     for (int n = 0; n < 4 * chain; ++n) {
-      EXPECT_DOUBLE_EQ(fix->compute_vector(n + 7), fix->FixNH::compute_vector(n));
-      EXPECT_EQ(fix->get_thermo_colname(n + 7), fix->FixNH::get_thermo_colname(n));
+      EXPECT_DOUBLE_EQ(fix->compute_vector(n + 6), fix->FixNH::compute_vector(n));
+      EXPECT_EQ(fix->get_thermo_colname(n + 6), fix->FixNH::get_thermo_colname(n));
     }
   }
 }
@@ -152,7 +151,7 @@ TEST_F(ComputeTempUVTTest, RestartPreservesCombinedTemperatureAndChainEnergy)
   command("clear");
   command("read_restart temp_uvt.restart");
   command("variable deriv equal 0.0");
-  command("fix cp all uvt temp 1 1 0.5 mu 0 0 0.5 ne 1 dedn v_deriv");
+  command("fix cp all uvt temp 1 1 0.5 mu 0 Udamp 0.5 ne 1 dedn v_deriv");
   command("run 0 post no");
   platform::unlink("temp_uvt.restart");
   fix = dynamic_cast<FixUVT *>(lmp->modify->get_fix_by_id("cp"));
@@ -187,7 +186,7 @@ TEST_F(ComputeTempUVTTest, ThermostatRejectsIncompatibleTemperatureComputes)
   command("fix_modify cp temp combined");
   EXPECT_NO_THROW(command("run 0 post no"));
 
-  command("fix other all uvt temp 1 1 0.5 mu 0 0 0.5 ne 1 dedn v_deriv");
+  command("fix other all uvt temp 1 1 0.5 mu 0 Udamp 0.5 ne 1 dedn v_deriv");
   command("fix_modify cp temp other_temp");
   EXPECT_ANY_THROW(command("run 0 post no"));
 }
@@ -226,7 +225,7 @@ TEST_F(ComputeTempUVTTest, ValidatesFixAndGroup)
 
   command("unfix cp");
   EXPECT_ANY_THROW(lmp->modify->get_compute_by_id("combined")->init());
-  command("fix cp all uvt temp 1 1 0.5 mu 0 0 0.5 ne 1 ne_velocity 3 dedn v_deriv");
+  command("fix cp all uvt temp 1 1 0.5 mu 0 Udamp 0.5 ne 1 ne_velocity 3 dedn v_deriv");
   EXPECT_NO_THROW(lmp->modify->get_compute_by_id("combined")->init());
   command("uncompute missing");
   command("uncompute wrong");

@@ -50,7 +50,8 @@ thread_local bool uvt_cache_ready = false;
 
 int uvt_skip_count(const char *keyword)
 {
-  if (strcmp(keyword, "mu") == 0) return 4;
+  if (strcmp(keyword, "mu") == 0) return 2;
+  if (strcmp(keyword, "Udamp") == 0) return 2;
   if (strcmp(keyword, "ne") == 0) return 2;
   if (strcmp(keyword, "ne_velocity") == 0) return 2;
   if (strcmp(keyword, "dedn") == 0) return 2;
@@ -111,26 +112,26 @@ void release_uvt_args()
 
 FixUVT::FixUVT(LAMMPS *lmp, int narg, char **arg) :
     FixNH(lmp, uvt_argc(narg, arg), uvt_argv(narg, arg)),
-    u_start(0.0), u_stop(0.0), u_target(0.0), u_freq(0.0),
+    mu(0.0), u_period(0.0), u_freq(0.0),
     Ne(0.0), Ne_dot(0.0), Ne_mass(0.0), dedn_name(nullptr), dedn_which(ArgInfo::NONE),
     dedn_index(0), dedn_var(-1), dedn_compute(nullptr), dedn_fix(nullptr), dedn_current(0.0)
 {
   if (narg < 4) utils::missing_cmd_args(FLERR, std::string("fix ") + style, error);
 
-  double u_period = 0.0;
   bool mu_seen = false;
   bool ne_seen = false;
   bool dedn_seen = false;
 
   for (int i = 3; i < narg;) {
     if (strcmp(arg[i], "mu") == 0) {
-      if (i + 4 > narg) utils::missing_cmd_args(FLERR, fmt::format("fix {} mu", style), error);
+      if (i + 2 > narg) utils::missing_cmd_args(FLERR, fmt::format("fix {} mu", style), error);
       mu_seen = true;
-      u_start = utils::numeric(FLERR, arg[i + 1], false, lmp);
-      u_target = u_start;
-      u_stop = utils::numeric(FLERR, arg[i + 2], false, lmp);
-      u_period = utils::numeric(FLERR, arg[i + 3], false, lmp);
-      i += 4;
+      mu = utils::numeric(FLERR, arg[i + 1], false, lmp);
+      i += 2;
+    } else if (strcmp(arg[i], "Udamp") == 0) {
+      if (i + 2 > narg) utils::missing_cmd_args(FLERR, fmt::format("fix {} Udamp", style), error);
+      u_period = utils::numeric(FLERR, arg[i + 1], false, lmp);
+      i += 2;
     } else if (strcmp(arg[i], "ne") == 0) {
       if (i + 2 > narg) utils::missing_cmd_args(FLERR, fmt::format("fix {} ne", style), error);
       ne_seen = true;
@@ -160,7 +161,7 @@ FixUVT::FixUVT(LAMMPS *lmp, int narg, char **arg) :
 
   u_freq = 1.0 / u_period;
 
-  size_vector += 7;
+  size_vector += 6;
 
   id_temp = utils::strdup(std::string(id) + "_temp");
   modify->add_compute(fmt::format("{} {} temp/uvt {}", id_temp, group->names[igroup], id));
@@ -245,8 +246,6 @@ void FixUVT::init()
   } else {
     error->all(FLERR, "dedn for fix {} must be a variable, compute, or fix reference", style);
   }
-
-  compute_mu_target();
   // The initial derivative is read in setup(), after forces are available.
   modify->addstep_compute_all(update->ntimestep);
 }
@@ -263,7 +262,6 @@ void FixUVT::setup(int vflag)
   Ne_mass = (tdof - 1.0) * boltz * t_target / (u_freq*u_freq);
 
   FixNH::setup(vflag);
-  compute_mu_target();
   post_force(vflag);
 }
 
@@ -291,7 +289,6 @@ void FixUVT::initial_integrate(int /*vflag*/)
 {
   if (tstat_flag) {
     compute_temp_target();
-    compute_mu_target();
     nhc_mu_integrate();
   }
 
@@ -322,7 +319,6 @@ void FixUVT::initial_integrate_respa(int /*vflag*/, int ilevel, int /*iloop*/)
   if (ilevel == nlevels_respa-1) {
     if (tstat_flag) {
       compute_temp_target();
-      compute_mu_target();
       nhc_mu_integrate();
     }
 
@@ -350,7 +346,7 @@ double FixUVT::compute_scalar()
 {
   double energy = FixNH::compute_scalar();
   // FixNH already includes the thermostat energy for the combined DOF.
-  energy += 0.5*Ne_mass*Ne_dot*Ne_dot - u_target*Ne;
+  energy += 0.5*Ne_mass*Ne_dot*Ne_dot - mu*Ne;
   return energy;
 }
 
@@ -363,10 +359,9 @@ double FixUVT::compute_vector(int n)
   if (n == 1) return temperature->compute_scalar();
   if (n == 2) return Ne_dot;
   if (n == 3) return dedn_current;
-  if (n == 4) return u_target;
-  if (n == 5) return 0.5*Ne_mass*Ne_dot*Ne_dot;
-  if (n == 6) return -u_target*Ne;
-  return FixNH::compute_vector(n - 7);
+  if (n == 4) return 0.5*Ne_mass*Ne_dot*Ne_dot;
+  if (n == 5) return -mu*Ne;
+  return FixNH::compute_vector(n - 6);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -378,10 +373,9 @@ std::string FixUVT::get_thermo_colname(int n)
   if (n == 1) return fmt::format("f_{}:T_ins", id);
   if (n == 2) return fmt::format("f_{}:Ne_dot", id);
   if (n == 3) return fmt::format("f_{}:dEdN", id);
-  if (n == 4) return fmt::format("f_{}:mu", id);
-  if (n == 5) return fmt::format("f_{}:ke_Ne", id);
-  if (n == 6) return fmt::format("f_{}:pe_mu", id);
-  return FixNH::get_thermo_colname(n - 7);
+  if (n == 4) return fmt::format("f_{}:ke_Ne", id);
+  if (n == 5) return fmt::format("f_{}:pe_mu", id);
+  return FixNH::get_thermo_colname(n - 6);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -472,9 +466,7 @@ void FixUVT::restart(char *buf)
 void *FixUVT::extract(const char *str, int &dim)
 {
   dim = 0;
-  if (strcmp(str, "u_start") == 0) return &u_start;
-  if (strcmp(str, "u_stop") == 0) return &u_stop;
-  if (strcmp(str, "u_target") == 0) return &u_target;
+  if (strcmp(str, "mu") == 0) return &mu;
   if (strcmp(str, "u_current") == 0) return &dedn_current;
   if (strcmp(str, "u_freq") == 0) return &u_freq;
 
@@ -498,7 +490,7 @@ double FixUVT::memory_usage()
 void FixUVT::nve_v()
 {
   FixNH::nve_v();
-  Ne_dot += (dthalf / Ne_mass) * (-dedn_current + u_target);
+  Ne_dot += (dthalf / Ne_mass) * (-dedn_current + mu);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -529,16 +521,6 @@ void FixUVT::nhc_mu_integrate()
     t_current += (Ne_mass - old_mass)*Ne_dot*Ne_dot / (tdof*boltz);
   }
   FixNH::nhc_temp_integrate();
-}
-
-/* ---------------------------------------------------------------------- */
-
-void FixUVT::compute_mu_target()
-{
-  double delta = update->ntimestep - update->beginstep;
-  if (delta != 0.0) delta /= update->endstep - update->beginstep;
-
-  u_target = u_start + delta * (u_stop-u_start);
 }
 
 /* ---------------------------------------------------------------------- */

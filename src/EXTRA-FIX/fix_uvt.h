@@ -57,12 +57,11 @@ class FixUVT : public FixNH {
 
  private:
   void nhc_mu_integrate();
-  void compute_mu_target();
   double evaluate_dedn();
   void parse_dedn_source(const char *);
 
-  double u_start, u_stop;
-  double u_target;
+  double mu;
+  double u_period;
   double u_freq;
   double Ne;
   double Ne_dot;

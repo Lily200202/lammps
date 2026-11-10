@@ -12,6 +12,7 @@
 #include "atom.h"
 #include "compute.h"
 #include "fix.h"
+#include "force.h"
 #include "lammps.h"
 #include "modify.h"
 #include "platform.h"
@@ -131,7 +132,6 @@ TEST_F(FixPIMDUVTSerialTest, RestartRestoresElectronState)
   double ne_before = 0.0;
   double nedot_before = 0.0;
   double dedn_before = 0.0;
-  double mu_before = 0.0;
 
   setup_quadratic_system();
   setup_uvt_fix("pimd/uvt", 1.8, 0.0);
@@ -140,7 +140,6 @@ TEST_F(FixPIMDUVTSerialTest, RestartRestoresElectronState)
   ne_before = fix_value("cp", uvt.ne);
   nedot_before = fix_value("cp", uvt.ne_dot);
   dedn_before = fix_value("cp", uvt.dedn);
-  mu_before = fix_value("cp", uvt.mu);
 
   command("write_restart pimd_uvt.restart");
   command("clear");
@@ -152,7 +151,6 @@ TEST_F(FixPIMDUVTSerialTest, RestartRestoresElectronState)
   EXPECT_NEAR(fix_value("cp", uvt.ne), ne_before, 1.0e-10);
   EXPECT_NEAR(fix_value("cp", uvt.ne_dot), nedot_before, 1.0e-10);
   EXPECT_NEAR(fix_value("cp", uvt.dedn), dedn_before, 1.0e-10);
-  EXPECT_NEAR(fix_value("cp", uvt.mu), mu_before, 1.0e-10);
 }
 
 TEST_F(FixPIMDUVTSerialTest, QuadraticToyFixedPointHasZeroElectronicForce)
@@ -166,7 +164,6 @@ TEST_F(FixPIMDUVTSerialTest, QuadraticToyFixedPointHasZeroElectronicForce)
   EXPECT_NEAR(fix_value("cp", uvt.ne), 1.4, 1.0e-10);
   EXPECT_NEAR(fix_value("cp", uvt.ne_dot), 0.0, 1.0e-10);
   EXPECT_NEAR(fix_value("cp", uvt.dedn), 2.0, 1.0e-10);
-  EXPECT_NEAR(fix_value("cp", uvt.mu), 2.0, 1.0e-12);
 }
 
 TEST_F(FixPIMDUVTSerialTest, RejectsMissingMuKeyword)
@@ -184,7 +181,61 @@ TEST_F(FixPIMDUVTSerialTest, AcceptsZeroChemicalPotential)
   command("fix cp all pimd/uvt temp 1.0 Tdamp 0.5 mu 0.0 Udamp 0.5 "
           "ne 1.0 dedn v_derivative");
   command("run 0 post no");
-  EXPECT_DOUBLE_EQ(fix_value("cp", pimd_test::uvt_vector_indices().mu), 0.0);
+  EXPECT_DOUBLE_EQ(fix_value("cp", pimd_test::uvt_vector_indices().ne), 1.0);
+}
+
+TEST_F(FixPIMDUVTSerialTest, ElectronicOutputLayoutOmitsTargetMu)
+{
+  for (int tchain : {1, 3, 5}) {
+    setup_quadratic_system();
+    command("variable derivative equal 5.0*(f_cp[11]-1.0)");
+    command("fix cp all pimd/uvt temp 1.0 Tdamp 0.5 tchain " + std::to_string(tchain) +
+            " mu 2.0 Udamp 0.5 ne 1.8 ne_velocity 0.25 dedn v_derivative");
+    command("run 0 post no");
+    const auto indices = pimd_test::uvt_vector_indices();
+    auto *fix = lmp->modify->get_fix_by_id("cp");
+    int dim;
+    const double mass = *static_cast<double *>(fix->extract("ne_mass", dim));
+    EXPECT_EQ(fix->size_vector, 16 + 4 * tchain);
+    EXPECT_DOUBLE_EQ(fix_value("cp", indices.ne), 1.8);
+    EXPECT_NEAR(fix_value("cp", indices.ne_ke), 0.5 * mass * 0.25 * 0.25, 1.0e-12);
+    EXPECT_NEAR(fix_value("cp", indices.electronic_potential), -3.6, 1.0e-12);
+    const double nuclear_dof = 3.0 * 108 - 3.0;
+    EXPECT_NEAR(fix_value("cp", 11), (nuclear_dof + mass * 0.25 * 0.25) /
+                                      (nuclear_dof + 1.0), 1.0e-12);
+    EXPECT_DOUBLE_EQ(fix_value("cp", 12), 0.25);
+    EXPECT_NEAR(fix_value("cp", 13), 4.0, 1.0e-12);
+    EXPECT_NEAR(fix_value("cp", 0), 0.5 * nuclear_dof, 1.0e-10);
+    EXPECT_EQ(fix->get_thermo_colname(10), "f_cp:Ne");
+    EXPECT_EQ(fix->get_thermo_colname(11), "f_cp:T_ins");
+    EXPECT_EQ(fix->get_thermo_colname(0), "");
+    for (int i = 0; i < fix->size_vector; ++i)
+      EXPECT_EQ(fix->extlist[i], (i < 10 || i >= 16) ? 1 : 0);
+    command("clear");
+  }
+}
+
+TEST_F(FixPIMDUVTSerialTest, P1PhysicalOutputsMatchClassicalUVT)
+{
+  if (!Info::has_package("EXTRA-FIX") || !Info::has_package("EXTRA-COMPUTE"))
+    GTEST_SKIP() << "Classical UVT requires EXTRA-FIX and EXTRA-COMPUTE";
+  std::vector<double> reference;
+  for (const std::string style : {"uvt", "pimd/uvt"}) {
+    setup_quadratic_system();
+    command("variable derivative equal 4.0");
+    command("fix cp all " + style +
+            (style == "uvt" ? " temp 1.0 1.0 0.5" : " temp 1.0 Tdamp 0.5") +
+            " mu 2.0 Udamp 0.5 ne 1.8 ne_velocity 0.25 dedn v_derivative");
+    command("run 0 post no");
+    const int offset = style == "uvt" ? 0 : 10;
+    if (reference.empty()) {
+      for (int i = 0; i < 6; ++i) reference.push_back(fix_value("cp", i));
+    } else {
+      for (int i = 0; i < 6; ++i)
+        EXPECT_NEAR(fix_value("cp", offset + i), reference[i], 1.0e-12) << "field " << i;
+    }
+    command("clear");
+  }
 }
 
 TEST_F(FixPIMDUVTSerialTest, RejectsLegacyMuStartStopDampSyntax)
@@ -287,9 +338,9 @@ TEST_F(FixPIMDUVTSerialTest, P1RetainsElectronicThermostat)
   setup_uvt_fix("pimd/uvt", 1.8, 0.4);
   command("run 20 post no");
 
-  EXPECT_TRUE(std::isfinite(fix_value("cp", 10)));
-  EXPECT_TRUE(std::isfinite(fix_value("cp", 13)));
-  EXPECT_GT(std::fabs(fix_value("cp", 13)), 1.0e-12);
+  EXPECT_TRUE(std::isfinite(fix_value("cp", 16)));
+  EXPECT_TRUE(std::isfinite(fix_value("cp", 19)));
+  EXPECT_GT(std::fabs(fix_value("cp", 19)), 1.0e-12);
 }
 
 TEST(FixPIMDUVTMPI, PartitionedRunExercisesBeadExpansion)
@@ -339,7 +390,6 @@ TEST(FixPIMDUVTMPI, PartitionedRunExercisesBeadExpansion)
   EXPECT_TRUE(std::isfinite(fix_value("cp", uvt.ne)));
   EXPECT_TRUE(std::isfinite(fix_value("cp", uvt.ne_dot)));
   EXPECT_TRUE(std::isfinite(fix_value("cp", uvt.dedn)));
-  EXPECT_NEAR(fix_value("cp", uvt.mu), 1.5, 1.0e-12);
   EXPECT_NE(fix_value("cp", uvt.dedn), 0.0);
 
   lammps_close(lmp);
@@ -393,7 +443,10 @@ TEST(FixPIMDUVTMPI, InitialVectorDerivativeUsesBeadCoordinates)
   for (int i = 0; i < instance->atom->nlocal; ++i) local += instance->atom->x[i][0];
   double total;
   MPI_Allreduce(&local, &total, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  EXPECT_NEAR(fix_value("cp", uvt.dedn), total / 2.0, 1.0e-10);
+  EXPECT_NEAR(fix_value("cp", uvt.dedn), local, 1.0e-10);
+  int dim;
+  auto *fix = instance->modify->get_fix_by_id("cp");
+  EXPECT_NEAR(*static_cast<double *>(fix->extract("dedn", dim)), total / 2.0, 1.0e-10);
 
   lammps_close(lmp);
 }
@@ -444,8 +497,12 @@ TEST(FixPIMDUVTMPI, BeadAveragedQuadraticDerivativeAtFixedPoint)
 
   EXPECT_NEAR(fix_value("cp", uvt.ne), 1.7, 1.0e-10);
   EXPECT_NEAR(fix_value("cp", uvt.ne_dot), 0.0, 1.0e-10);
-  EXPECT_NEAR(fix_value("cp", uvt.dedn), 1.5, 1.0e-10);
-  EXPECT_NEAR(fix_value("cp", uvt.mu), 1.5, 1.0e-12);
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  EXPECT_NEAR(fix_value("cp", uvt.dedn), rank == 0 ? 2.1 : 0.9, 1.0e-10);
+  auto *fix = static_cast<LAMMPS *>(lmp)->modify->get_fix_by_id("cp");
+  int dim;
+  EXPECT_NEAR(*static_cast<double *>(fix->extract("dedn", dim)), 1.5, 1.0e-10);
 
   lammps_close(lmp);
 }
@@ -487,13 +544,32 @@ TEST(FixPIMDUVTMPI, MultiRankPerBeadAveragesDerivativeOncePerBead)
   command("variable beadshift universe 0.0 0.15");
   command("displace_atoms all move ${beadshift} 0.0 0.0 units box");
   command("velocity all create 0.8 97531 mom yes rot no dist gaussian");
-  command("variable dEdN equal 1.5");
+  command("variable bead_dedn world 1.0 2.0");
+  command("variable dEdN equal ${bead_dedn}");
   command("fix cp all pimd/uvt method nmpimd thermostat NHC temp 0.8 Tdamp 0.2 "
-          "tchain 3 tloop 1 mu 1.5 Udamp 0.2 ne 1.7 ne_velocity 0.0 dedn v_dEdN");
+          "tchain 3 tloop 1 mu 1.5 Udamp 0.2 ne 1.7 ne_velocity 0.25 dedn v_dEdN removecom no");
   command("run 0 post no");
 
-  EXPECT_NEAR(fix_value("cp", uvt.dedn), 1.5, 1.0e-12);
-  EXPECT_NEAR(fix_value("cp", uvt.mu), 1.5, 1.0e-12);
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  EXPECT_NEAR(fix_value("cp", uvt.dedn), rank < 2 ? 1.0 : 2.0, 1.0e-12);
+  auto *instance = static_cast<LAMMPS *>(lmp);
+  auto *fix = instance->modify->get_fix_by_id("cp");
+  int dim;
+  EXPECT_NEAR(*static_cast<double *>(fix->extract("dedn", dim)), 1.5, 1.0e-12);
+  const double mass = *static_cast<double *>(fix->extract("ne_mass", dim));
+  double local_ke = 0.0;
+  for (int i = 0; i < instance->atom->nlocal; ++i)
+    for (int j = 0; j < 3; ++j)
+      local_ke += instance->atom->v[i][j] * instance->atom->v[i][j];
+  double total_ke;
+  MPI_Allreduce(&local_ke, &total_ke, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  const double expected_temp = (total_ke * instance->force->mvv2e / 2.0 +
+                                mass * 0.25 * 0.25) /
+      ((2.0 * 3.0 * instance->atom->natoms + 1.0) * instance->force->boltz);
+  EXPECT_NEAR(fix_value("cp", 11), expected_temp, 1.0e-12);
+  command("run 1 post no");
+  EXPECT_NEAR(fix_value("cp", uvt.dedn), rank < 2 ? 1.0 : 2.0, 1.0e-12);
 
   lammps_close(lmp);
 }
@@ -533,7 +609,7 @@ TEST(FixPIMDUVTMPI, ElectronicVelocityUsesMeanChainFriction)
              "mu 1.5 Udamp 0.2 ne 1.7 ne_velocity 0.1 dedn v_dEdN").c_str());
     command("run 20 post no");
 
-    const double eta0 = pimd_test::fix_value(lmp, "cp", pimd_test::kNuclearPrefixScalars);
+    const double eta0 = pimd_test::fix_value(lmp, "cp", pimd_test::kNuclearPrefixScalars + 6);
     double eta_sum = 0.0, eta_min = 0.0, eta_max = 0.0;
     MPI_Allreduce(&eta0, &eta_sum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(&eta0, &eta_min, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);

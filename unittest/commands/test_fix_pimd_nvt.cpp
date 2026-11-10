@@ -196,8 +196,9 @@ TEST_F(FixPIMDNVTSerialTest, ThermostatAdvancesFullElapsedTime)
         // With zero forces and velocities, K remains zero. For a single
         // thermostat and Tdamp=1, zeta_dot=-1, zeta=-t, eta=-t*t/2.
         const double elapsed = 0.007;
-        EXPECT_NEAR(fix_value("cp", 10), -0.5 * elapsed * elapsed, 1.0e-13);
-        EXPECT_NEAR(fix_value("cp", 11), -elapsed, 1.0e-13);
+        const int chain_start = style == "pimd/uvt" ? 16 : 10;
+        EXPECT_NEAR(fix_value("cp", chain_start), -0.5 * elapsed * elapsed, 1.0e-13);
+        EXPECT_NEAR(fix_value("cp", chain_start + 1), -elapsed, 1.0e-13);
       }
 }
 
