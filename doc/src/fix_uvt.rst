@@ -86,9 +86,9 @@ particle coordinates at the innermost level.  Derivative providers must
 supply the complete derivative at the outermost force stage.
 
 The ``mu`` target is constant throughout a run. ``Udamp`` has time units
-and must be positive. For compatibility, the old ``mu Mu Mu Mudamp``
-syntax is accepted when both endpoints are equal; unequal endpoints are
-rejected. Prefer ``mu Mu Udamp tau_U`` for new inputs.
+and must be positive, as in ``fix pimd/uvt``. The old three-value
+``mu Mustart Mustop Mudamp`` syntax is not supported; replace it with
+``mu Mu Udamp tau_U``. Chemical-potential ramps are not supported.
 
 The global fix vector starts with six physical outputs:
 

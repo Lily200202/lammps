@@ -102,7 +102,7 @@ public:
 
 TEST_F(FixUVTTest, ConstantMuSyntaxAndOutputLayout)
 {
-    for (const char *settings : {"mu 0 Udamp 0.5", "Udamp 0.5 mu 0", "mu 0 0 0.5"}) {
+    for (const char *settings : {"mu 0 Udamp 0.5", "Udamp 0.5 mu 0"}) {
         setup_quadratic_system();
         command("variable response equal 0.0");
         command(std::string("fix cp all uvt temp 1 1 0.5 ") + settings +
@@ -118,13 +118,15 @@ TEST_F(FixUVTTest, ConstantMuSyntaxAndOutputLayout)
     }
 }
 
-TEST_F(FixUVTTest, RejectsChemicalPotentialRamp)
+TEST_F(FixUVTTest, RejectsLegacyThreeValueMuSyntax)
 {
-    setup_quadratic_system();
-    command("variable response equal 0.0");
-    TEST_FAILURE("only supports constant mu", {
-        command("fix cp all uvt temp 1 1 0.5 mu 2 3 0.5 ne 1.8 dedn v_response");
-    });
+    for (const char *settings : {"mu 2 2 0.5", "mu 2 3 0.5"}) {
+        setup_quadratic_system();
+        command("variable response equal 0.0");
+        EXPECT_ANY_THROW(command(std::string("fix cp all uvt temp 1 1 0.5 ") + settings +
+                                 " ne 1.8 dedn v_response"));
+        command("clear");
+    }
 }
 
 TEST_F(FixUVTTest, RequiresPositiveUdamp)

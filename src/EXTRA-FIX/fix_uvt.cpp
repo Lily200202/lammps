@@ -48,13 +48,9 @@ struct UvtArgCache {
 thread_local UvtArgCache uvt_cache;
 thread_local bool uvt_cache_ready = false;
 
-int uvt_skip_count(int narg, char **arg, int i)
+int uvt_skip_count(const char *keyword)
 {
-  const char *keyword = arg[i];
-  if (strcmp(keyword, "mu") == 0) {
-    // Retain constant-mu inputs using the old three-value syntax.
-    return (i + 2 < narg && utils::is_double(arg[i + 2])) ? 4 : 2;
-  }
+  if (strcmp(keyword, "mu") == 0) return 2;
   if (strcmp(keyword, "Udamp") == 0) return 2;
   if (strcmp(keyword, "ne") == 0) return 2;
   if (strcmp(keyword, "ne_velocity") == 0) return 2;
@@ -73,7 +69,7 @@ void prepare_uvt_args(int narg, char **arg)
 
   for (int i = 0; i < narg;) {
     if (i >= 3) {
-      const int skip = uvt_skip_count(narg, arg, i);
+      const int skip = uvt_skip_count(arg[i]);
       if (skip > 0) {
         i += skip;
         continue;
@@ -128,17 +124,10 @@ FixUVT::FixUVT(LAMMPS *lmp, int narg, char **arg) :
 
   for (int i = 3; i < narg;) {
     if (strcmp(arg[i], "mu") == 0) {
-      const int count = uvt_skip_count(narg, arg, i);
-      if (i + count > narg) utils::missing_cmd_args(FLERR, fmt::format("fix {} mu", style), error);
+      if (i + 2 > narg) utils::missing_cmd_args(FLERR, fmt::format("fix {} mu", style), error);
       mu_seen = true;
       mu = utils::numeric(FLERR, arg[i + 1], false, lmp);
-      if (count == 4) {
-        const double mu_stop = utils::numeric(FLERR, arg[i + 2], false, lmp);
-        if (mu_stop != mu)
-          error->all(FLERR, "Fix uvt only supports constant mu; use mu value Udamp time");
-        u_period = utils::numeric(FLERR, arg[i + 3], false, lmp);
-      }
-      i += count;
+      i += 2;
     } else if (strcmp(arg[i], "Udamp") == 0) {
       if (i + 2 > narg) utils::missing_cmd_args(FLERR, fmt::format("fix {} Udamp", style), error);
       u_period = utils::numeric(FLERR, arg[i + 1], false, lmp);
