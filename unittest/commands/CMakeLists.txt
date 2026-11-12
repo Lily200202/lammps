@@ -65,8 +65,13 @@ if(PKG_EXTRA-FIX AND PKG_EXTRA-COMPUTE)
 
   add_executable(test_compute_temp_uvt test_compute_temp_uvt.cpp)
   target_link_libraries(test_compute_temp_uvt PRIVATE lammps GTest::GMock)
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/ComputeTempUVT
+                      ${CMAKE_CURRENT_BINARY_DIR}/ComputeTempUVTMPI)
   add_test(NAME ComputeTempUVT COMMAND test_compute_temp_uvt)
+  set_tests_properties(ComputeTempUVT PROPERTIES
+                       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/ComputeTempUVT)
   add_mpi_test(NAME ComputeTempUVTMPI NUM_PROCS 2
+               WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/ComputeTempUVTMPI
                COMMAND $<TARGET_FILE:test_compute_temp_uvt>)
 endif()
 
@@ -170,21 +175,25 @@ if(PKG_REPLICA)
   add_test(NAME FixPIMDLangevin
            COMMAND test_fix_pimd_langevin
                    --gtest_filter=FixPIMDLangevinSerialTest.*)
+  string(CONCAT pimd_langevin_partition_filter
+         "--gtest_filter=FixPIMDLangevinMPI.NMPIMDNVEOBABOP2:"
+         "FixPIMDLangevinMPI.NMPIMDNVTBAOABP2:"
+         "FixPIMDLangevinMPI.PIMDNVEOBABOP2:"
+         "FixPIMDLangevinMPI.PIMDNVTBAOABP2:"
+         "FixPIMDLangevinRestartTest.NMPIMDNVTRestartContinuation:"
+         "FixPIMDLangevinRestartTest.PIMDNVTRestartContinuation")
   add_mpi_test(NAME FixPIMDLangevinPartition NUM_PROCS 2
                COMMAND $<TARGET_FILE:test_fix_pimd_langevin>
-                       --gtest_filter=FixPIMDLangevinMPI.NMPIMDNVEOBABOP2:
-                                      FixPIMDLangevinMPI.NMPIMDNVTBAOABP2:
-                                      FixPIMDLangevinMPI.PIMDNVEOBABOP2:
-                                      FixPIMDLangevinMPI.PIMDNVTBAOABP2:
-                                      FixPIMDLangevinRestartTest.NMPIMDNVTRestartContinuation:
-                                      FixPIMDLangevinRestartTest.PIMDNVTRestartContinuation)
+                       "${pimd_langevin_partition_filter}")
+  string(CONCAT pimd_langevin_multirank_filter
+         "--gtest_filter=FixPIMDLangevinMPI.NMPIMDNVTOBABOMultiRankPerBead:"
+         "FixPIMDLangevinMPI.NMPIMDNPTBZP:"
+         "FixPIMDLangevinMPI.NMPIMDNPTMTTK:"
+         "FixPIMDLangevinRestartTest.NMPIMDNPTBZPRestartContinuation:"
+         "FixPIMDLangevinExpectedErrorTest.PIMDRejectsMultipleRanksPerBead")
   add_mpi_test(NAME FixPIMDLangevinMultiRank NUM_PROCS 4
                COMMAND $<TARGET_FILE:test_fix_pimd_langevin>
-                       --gtest_filter=FixPIMDLangevinMPI.NMPIMDNVTOBABOMultiRankPerBead:
-                                      FixPIMDLangevinMPI.NMPIMDNPTBZP:
-                                      FixPIMDLangevinMPI.NMPIMDNPTMTTK:
-                                      FixPIMDLangevinRestartTest.NMPIMDNPTBZPRestartContinuation:
-                                      FixPIMDLangevinExpectedErrorTest.PIMDRejectsMultipleRanksPerBead)
+                       "${pimd_langevin_multirank_filter}")
 
   add_mpi_test(NAME FixPIMDLangevinAnisotropic NUM_PROCS 4
                COMMAND $<TARGET_FILE:test_fix_pimd_langevin>

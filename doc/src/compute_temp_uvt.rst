@@ -70,7 +70,7 @@ Restrictions
 
 This compute is part of the EXTRA-COMPUTE package.  Using it also requires
 the EXTRA-FIX package for the referenced fix uvt, which must use the same
-group.  It must exist when the run is initialized;
+group. The referenced fix must exist when the run is initialized;
 the electronic mass must be initialized before the combined temperature
 is evaluated.  A normal run setup initializes that mass in fix uvt.
 
@@ -81,9 +81,10 @@ if it references the same UVT fix and uses the same group.
 
 Fix uvt also exposes this temperature directly as its second vector entry
 (``f_cp[2]`` for fix ID ``cp``), so reporting it does not require an explicit
-compute command. The scalar can alternatively report the combined temperature.  Other
-atomic thermostats do not scale the electron-number velocity and must
-not use this combined temperature to control the coupled system.
+compute command. When an explicit compute is used, ``c_combined`` in
+the example above reports its scalar temperature. Other atomic thermostats
+do not scale the electron-number velocity and must not use this combined
+temperature to control the coupled system.
 
 Related commands
 """"""""""""""""
