@@ -606,6 +606,9 @@ or *pimd/langevin* is not invoked during :doc:`energy minimization
 Restrictions
 """"""""""""
 
+These fixes require :doc:`run_style verlet <run_style>` and do not
+support :doc:`fix dt/reset <fix_dt_reset>`.
+
 These fixes are part of the REPLICA package.  They are only enabled if
 LAMMPS was built with that package.  See the :doc:`Build package
 <Build_package>` page for more info.

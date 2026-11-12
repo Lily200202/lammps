@@ -66,6 +66,69 @@ class FixPIMDNVESerialTest : public LAMMPSTest {
   }
 };
 
+class FixPIMDIntegrationCompatibilityTest : public FixPIMDNVESerialTest,
+                                          public ::testing::WithParamInterface<const char *> {
+ protected:
+  void setup_pimd_fix()
+  {
+    const std::string style = GetParam();
+    const std::string method = style.find("bosonic") == std::string::npos ? "nmpimd" : "pimd";
+    std::string options = " method " + method + " temp 1.0";
+    if (style.find("langevin") != std::string::npos)
+      options += " ensemble nve";
+    else if (style != "pimd/nve")
+      options += " Tdamp 0.5";
+    if (style == "pimd/uvt") {
+      command("variable derivative equal 0.0");
+      options += " mu 0.0 Udamp 0.5 ne 1.0 dedn v_derivative";
+    }
+    command("fix cp all " + style + options);
+  }
+
+  void expect_run_error(const std::string &message)
+  {
+    try {
+      command("run 0 post no");
+      FAIL() << "Accepted unsupported integration setting for " << GetParam();
+    } catch (const LAMMPSException &e) {
+      EXPECT_NE(std::string(e.what()).find(message), std::string::npos) << e.what();
+    }
+  }
+};
+
+TEST_P(FixPIMDIntegrationCompatibilityTest, RejectsRespa)
+{
+  setup_zero_pair_system();
+  setup_pimd_fix();
+  command("run_style respa 1");
+  expect_run_error("requires run_style verlet");
+}
+
+TEST_P(FixPIMDIntegrationCompatibilityTest, RejectsDtResetInEitherFixOrder)
+{
+  for (bool reset_first : {false, true}) {
+    setup_zero_pair_system();
+    if (reset_first) command("fix adaptive all dt/reset 1 NULL 0.005 0.001 units box");
+    setup_pimd_fix();
+    if (!reset_first) command("fix adaptive all dt/reset 1 NULL 0.005 0.001 units box");
+    expect_run_error("does not support fix dt/reset");
+    command("clear");
+  }
+}
+
+TEST_P(FixPIMDIntegrationCompatibilityTest, AllowsFixedStepVerletAndReinitialization)
+{
+  setup_zero_pair_system();
+  setup_pimd_fix();
+  EXPECT_NO_THROW(command("run 1 post no"));
+  command("timestep 0.0025");
+  EXPECT_NO_THROW(command("run 1 post no"));
+}
+
+INSTANTIATE_TEST_SUITE_P(PIMDStyles, FixPIMDIntegrationCompatibilityTest,
+                         ::testing::Values("pimd/nve", "pimd/nvt", "pimd/uvt", "pimd/langevin",
+                                           "pimd/nvt/bosonic", "pimd/langevin/bosonic", "pimd"));
+
 TEST_F(FixPIMDNVESerialTest, DoesNotMoveAtomsOutsideFixGroup)
 {
   command("units lj");
