@@ -683,7 +683,7 @@ TEST(FixPIMDUVTMPI, ElectronicVelocityUsesMeanChainFriction)
              "mu 1.5 Udamp 0.2 ne 1.7 ne_velocity 0.1 dedn v_dEdN").c_str());
     command("run 20 post no");
 
-    const double eta0 = pimd_test::fix_value(lmp, "cp", pimd_test::kNuclearPrefixScalars + 6);
+    double eta0 = pimd_test::fix_value(lmp, "cp", pimd_test::kNuclearPrefixScalars + 6);
     double eta_sum = 0.0, eta_min = 0.0, eta_max = 0.0;
     MPI_Allreduce(&eta0, &eta_sum, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     MPI_Allreduce(&eta0, &eta_min, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
