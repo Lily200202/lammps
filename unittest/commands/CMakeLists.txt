@@ -99,6 +99,9 @@ if(PKG_REPLICA)
   add_mpi_test(NAME FixPIMDUVTMultiRankPerBead NUM_PROCS 4
                COMMAND $<TARGET_FILE:test_fix_pimd_uvt>
                        --gtest_filter=FixPIMDUVTMPI.MultiRankPerBeadAveragesDerivativeOncePerBead:FixPIMDUVTMPI.ElectronicVelocityUsesMeanChainFriction)
+  add_mpi_test(NAME FixPIMDUVTSharedElectronicMass NUM_PROCS 4
+               COMMAND $<TARGET_FILE:test_fix_pimd_uvt>
+                       --gtest_filter=FixPIMDUVTMPI.SharedElectronicMassAndEnergyAreConsistentAcrossBeads)
 
 endif()
 

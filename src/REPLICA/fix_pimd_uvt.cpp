@@ -133,7 +133,11 @@ void FixPIMDUVT::setup_subclass_state()
   resolve_dedn_source();
   modify->addstep_compute_all(update->ntimestep);
   u_freq = 1.0 / u_period;
-  *Ne_mass = tdof * force->boltz * temp / (u_freq * u_freq);
+  // The shared electronic coordinate uses the centroid's nuclear DOF.
+  // Internal modes can have different DOF when COM motion is removed.
+  if (universe->me == 0)
+    *Ne_mass = tdof * force->boltz * temp / (u_freq * u_freq);
+  MPI_Bcast(Ne_mass, 1, MPI_DOUBLE, 0, universe->uworld);
 }
 
 /* ---------------------------------------------------------------------- */

@@ -574,6 +574,80 @@ TEST(FixPIMDUVTMPI, MultiRankPerBeadAveragesDerivativeOncePerBead)
   lammps_close(lmp);
 }
 
+TEST(FixPIMDUVTMPI, SharedElectronicMassAndEnergyAreConsistentAcrossBeads)
+{
+  int nprocs = 0;
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+  if (nprocs != 2 && nprocs != 4)
+    GTEST_SKIP() << "This test requires 2 or 4 MPI ranks";
+
+  const std::vector<std::string> layouts =
+      nprocs == 2 ? std::vector<std::string>{"2x1"} :
+                    std::vector<std::string>{"2x2", "4x1"};
+  for (const auto &layout : layouts) {
+    for (const std::string removecom : {"", "yes", "no"}) {
+      for (const std::string split : {"obabo", "baoab"}) {
+        SCOPED_TRACE(layout + " removecom=" + (removecom.empty() ? "default" : removecom) +
+                     " integrator=" + split);
+        const char *args[] = {"LAMMPS_test", "-log", "none", "-partition", layout.c_str(),
+                              "-screen", "none", "-nocite", "-in", "none"};
+        void *lmp = lammps_open(sizeof(args) / sizeof(char *), (char **) args,
+                                MPI_COMM_WORLD, nullptr);
+        ASSERT_NE(lmp, nullptr);
+        auto command = [lmp](const std::string &line) { lammps_command(lmp, line.c_str()); };
+        command("units lj");
+        command("atom_style atomic");
+        command("atom_modify map yes");
+        command("region box block 0 10 0 10 0 10");
+        command("create_box 1 box");
+        command("create_atoms 1 single 1 1 1");
+        command("create_atoms 1 single 2 2 2");
+        command("mass 1 1.0");
+        command("pair_style zero 2.0");
+        command("pair_coeff * *");
+        command("velocity all create 1.0 97531 mom yes rot no dist gaussian");
+        command("timestep 0.002");
+        command("variable response equal 0.0");
+        command("fix cp all pimd/uvt temp 1.0 Tdamp 0.5 mu 0.0 Udamp 0.5 "
+                "ne 1.0 ne_velocity 1.0 dedn v_response integrator " + split +
+                (removecom.empty() ? "" : " removecom " + removecom));
+        command("thermo_style custom step");
+        command("thermo 1000");
+        command("run 0 post no");
+
+        // The global mass uses the centroid's nuclear DOF: three for two
+        // atoms with COM removal, otherwise six. Internal-mode DOF differ.
+        const double expected_mass = removecom == "no" ? 1.5 : 0.75;
+        auto check_shared_state = [&]() {
+          auto *fix = static_cast<LAMMPS *>(lmp)->modify->get_fix_by_id("cp");
+          int dim;
+          double state[] = {*static_cast<double *>(fix->extract("ne_mass", dim)),
+                             *static_cast<double *>(fix->extract("ne", dim)),
+                             *static_cast<double *>(fix->extract("ne_dot", dim)),
+                             pimd_test::fix_value(lmp, "cp", 14)};
+          double minimum[4], maximum[4];
+          MPI_Allreduce(state, minimum, 4, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+          MPI_Allreduce(state, maximum, 4, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+          for (int i = 0; i < 4; ++i)
+            EXPECT_NEAR(minimum[i], maximum[i], 1.0e-12) << "state index=" << i;
+          EXPECT_DOUBLE_EQ(state[0], expected_mass);
+          EXPECT_NEAR(state[3], 0.5 * expected_mass * state[2] * state[2], 1.0e-12);
+        };
+        {
+          SCOPED_TRACE("after setup");
+          check_shared_state();
+        }
+        command("run 10 post no");
+        {
+          SCOPED_TRACE("after integration");
+          check_shared_state();
+        }
+        lammps_close(lmp);
+      }
+    }
+  }
+}
+
 TEST(FixPIMDUVTMPI, ElectronicVelocityUsesMeanChainFriction)
 {
   int nprocs = 0;
