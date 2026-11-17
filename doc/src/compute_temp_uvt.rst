@@ -3,6 +3,8 @@
 compute temp/uvt command
 ========================
 
+.. versionadded:: 17Nov2026
+
 Syntax
 """"""
 
