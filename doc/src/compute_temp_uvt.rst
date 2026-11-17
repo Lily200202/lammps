@@ -29,8 +29,9 @@ Examples
 Description
 """""""""""
 
-Calculate a combined temperature for the atomic velocities and the
-single electron-number velocity controlled by :doc:`fix uvt <fix_uvt>`:
+Define a computation that calculates a combined temperature for the atomic
+velocities and the single electron-number velocity controlled by
+:doc:`fix uvt <fix_uvt>`:
 
 .. math::
 
@@ -81,7 +82,7 @@ Fix uvt creates a compute of this style automatically, with ID
 temp/uvt compute can be selected with :doc:`fix_modify temp <fix_modify>`
 if it references the same UVT fix and uses the same group.
 
-Fix uvt also exposes this temperature directly as its second vector entry
+The :doc:`fix uvt <fix_uvt>` command also exposes this temperature directly as its second vector entry
 (``f_cp[2]`` for fix ID ``cp``), so reporting it does not require an explicit
 compute command. When an explicit compute is used, ``c_combined`` in
 the example above reports its scalar temperature. Other atomic thermostats
