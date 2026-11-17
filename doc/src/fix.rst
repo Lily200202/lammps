@@ -361,6 +361,7 @@ accelerated styles exist.
 * :doc:`pimd/langevin <fix_pimd>` - Feynman path-integral molecular dynamics with stochastic thermostat
 * :doc:`pimd/nve <fix_pimd>` - Feynman path-integral molecular dynamics without thermostat
 * :doc:`pimd/nvt <fix_pimd>` - Feynman path-integral molecular dynamics with Nose-Hoover thermostat
+* :doc:`pimd/uvt <fix_pimd_uvt>` - constant-potential path-integral molecular dynamics
 * :doc:`pimd/langevin/bosonic <fix_pimd>` - Bosonic Feynman path-integral molecular dynamics for with stochastic thermostat
 * :doc:`pimd/nvt/bosonic <fix_pimd>` - Bosonic Feynman path-integral molecular dynamics with Nose-Hoover thermostat
 * :doc:`planeforce <fix_planeforce>` - constrain atoms to move in a plane
@@ -456,6 +457,7 @@ accelerated styles exist.
 * :doc:`ttm/mod <fix_ttm>` - enhanced two-temperature model with additional options
 * :doc:`ttm/thermal <fix_ttm>` - a two-temperature model for thermal transport
 * :doc:`tune/kspace <fix_tune_kspace>` - auto-tune :math:`k`-space parameters
+* :doc:`uvt <fix_uvt>` - constant chemical-potential molecular dynamics
 * :doc:`vector <fix_vector>` - accumulate a global vector every *N* timesteps
 * :doc:`viscosity <fix_viscosity>` - Mueller-Plathe momentum exchange for viscosity calculation
 * :doc:`viscous <fix_viscous>` - viscous damping for granular simulations
