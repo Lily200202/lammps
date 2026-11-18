@@ -54,10 +54,7 @@ The number of path-integral beads is set by the number of LAMMPS
 partitions, so the job must be launched with one partition per bead.
 
 The electronic mass is :math:`W_\mathrm{e}=g_\mathrm{c} k_B T\,\mathrm{Udamp}^2`,
-where :math:`g_\mathrm{c}` is the centroid mode's nuclear thermostat DOF,
-including any ``removecom`` correction or ``tdof`` override. This single
-mass is shared by all beads and MPI ranks, even when internal modes have
-different nuclear DOF.
+where :math:`g_\mathrm{c}` is the centroid mode's nuclear thermostat DOF.
 
 The ``dedn`` source may be an equal-style variable (``v_name``), a
 global compute (``c_ID``), or a global fix (``f_ID``).  If the source
@@ -78,37 +75,15 @@ physical outputs of :doc:`fix uvt <fix_uvt>`, in the same order:
 
 These six indices do not depend on ``tchain``. The ``4*tchain`` NHC outputs
 follow, starting at entry 17, so the total vector length is ``16+4*tchain``.
-The physical outputs are not normalized by atom count. Nuclear and NHC
-outputs retain their inherited normalization.
 
-The temperature combines nuclear kinetic energy converted from the internal
-scaled-temperature representation with the shared electronic kinetic energy,
-counted once. For P=1, it has the same definition as the combined temperature
-reported by ``fix uvt``. The electronic kinetic energy and ``-mu*Ne`` are
-also reported in the physical representation.
-
-Entry 14 reports the individual bead derivative. Average these values
-over beads to compare with the target chemical potential; this average
-is used for propagation. For classical ``fix uvt``, entry 4 reports the
-derivative of the single classical system.
-
-The fix scalar reports cumulative nuclear plus electronic thermostat
-work in the internal scaled ring-polymer representation. The classical UVT
-scalar instead reports an extended-energy contribution, as described on its
-documentation page.
+The combined temperature includes the nuclear and electronic kinetic
+energy. Entry 14 reports the energy derivative for the current bead; its
+average over the beads is the value used for propagation.
 
 The fix writes restart data for the nuclear thermostat state and the
 electronic degree of freedom, so simulations may be continued with
 :doc:`read_restart <read_restart>` followed by the same ``fix pimd/uvt``
 command.
-
-Compatibility
-"""""""""""""
-
-Update scripts using the old chain-dependent electronic indices. With
-``tchain 3``, ``Ne`` moves from entry 23 to entry 11; nuclear entries
-1 through 10 are unchanged. The target chemical potential and the three
-thermostat-work entries are no longer vector outputs.
 
 Restrictions
 """"""""""""

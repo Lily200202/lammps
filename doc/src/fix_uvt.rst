@@ -45,10 +45,8 @@ A single Nose-Hoover chain thermostats the nuclear velocities and the
 electron-number velocity together.  The fix creates
 :doc:`compute temp/uvt <compute_temp_uvt>` with ID *fix-ID_temp* to provide
 the combined temperature and :math:`g+1` degrees of freedom, where
-:math:`g` is the nuclear DOF.  The electronic mass remains
+:math:`g` is the nuclear DOF.  The electronic mass is
 :math:`W_\mathrm{e}=g k_B T_\mathrm{target} \, \mathrm{Udamp}^2`.
-It is initialized before the first combined temperature evaluation and
-updated with the temperature target during integration.
 
 The standard thermo temperature remains nuclear-only unless explicitly
 changed.  The first two fix-vector entries report the electron number and combined
@@ -68,23 +66,6 @@ The ``dedn`` source may be an equal-style variable (``v_name``), a
 global compute (``c_ID``), or a global fix (``f_ID``).  If the source
 provides a global vector, an entry can be selected with the usual
 ``[index]`` syntax.
-
-The derivative is read once during setup, after the initial force calculation,
-and then in ``post_force`` after each force calculation.  The cached value
-is used by the second electronic velocity half-step and the first half-step
-of the next timestep.  This applies to both analytical variables and
-sources whose derivative is produced during force evaluation.
-
-If the source is produced by another fix in its ``post_force`` callback,
-define that fix before ``fix uvt`` so it updates the derivative first.
-The provider must also make the initial derivative available during its
-``setup`` callback.  The same ordering requirement applies to indirect
-compute or variable references to such a fix.
-
-With r-RESPA, the derivative is refreshed and the electronic velocity is
-kicked at the outermost level; the electronic coordinate drifts with the
-particle coordinates at the innermost level.  Derivative providers must
-supply the complete derivative at the outermost force stage.
 
 The ``mu`` target is constant throughout a run. ``Udamp`` has time units
 and must be positive. Chemical-potential ramps are not supported.
@@ -107,22 +88,10 @@ vector length is 6+4*M for a thermostat chain of length M. All six physical
 indices are independent of M. The temperature output is intensive and is
 not normalized by atom count.
 
-The first Nose-Hoover potential-energy entry includes all
-:math:`g+1` controlled DOF.  The fix scalar includes the combined chain
-energy plus the electronic kinetic and potential terms, without counting
-the electronic thermostat contribution twice.
-
 The fix writes restart data for the Nose-Hoover state and electronic
 degree of freedom, so simulations may be continued with
 :doc:`read_restart <read_restart>` followed by the same ``fix uvt``
 command.
-
-Compatibility
-"""""""""""""
-
-The target ``mu`` is a constant value and is no longer a vector output.
-Electronic kinetic and potential energies are entries 5 and 6, and the
-Nose-Hoover entries start at 7. The ``Ne`` output remains entry 1.
 
 Restrictions
 """"""""""""
