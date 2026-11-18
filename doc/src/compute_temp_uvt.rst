@@ -81,8 +81,8 @@ if it references the same UVT fix and uses the same group.
 
 The :doc:`fix uvt <fix_uvt>` command also exposes this temperature directly
 as its second vector entry
-(``f_cp[2]`` for fix ID ``cp``), so reporting it does not require an explicit
-compute command. When an explicit compute is used, ``c_combined`` in
+(*f_cp[2]* for fix ID *cp*), so reporting it does not require an explicit
+compute command. When an explicit compute is used, *c_combined* in
 the example above reports its scalar temperature. Other atomic thermostats
 do not scale the electron-number velocity and must not use this combined
 temperature to control the coupled system.

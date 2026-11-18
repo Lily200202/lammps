@@ -19,6 +19,9 @@ fix pimd/langevin/bosonic command
 fix pimd/nvt/bosonic command
 ============================
 
+The constant-potential variant is documented separately in the
+:doc:`fix pimd/uvt <fix_pimd_uvt>` command page.
+
 Syntax
 """"""
 

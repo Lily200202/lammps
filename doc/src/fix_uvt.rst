@@ -13,14 +13,14 @@ Syntax
    fix ID group-ID uvt temp Tstart Tstop Tdamp mu Mu Udamp ne Ne0 dedn source [keyword value ...]
 
 * ID, group-ID are documented in :doc:`fix <fix>` command
-* ``temp`` values = Tstart Tstop Tdamp (temperature, temperature, and time units)
-* ``mu`` value = constant chemical potential
-* ``Udamp`` value = positive electronic damping time (time units)
-* ``ne`` value = initial electronic coordinate
-* ``dedn`` value = global scalar or vector reference used as dE/dN
+* *temp* values = Tstart Tstop Tdamp (temperature, temperature, and time units)
+* *mu* value = constant chemical potential
+* *Udamp* value = positive electronic damping time (time units)
+* *ne* value = initial electronic coordinate
+* *dedn* value = global scalar or vector reference used as dE/dN
 
 Optional keywords are the Nose-Hoover keywords supported by
-:doc:`fix nvt <fix_nh>`. The additional ``ne_velocity`` keyword sets the
+:doc:`fix nvt <fix_nh>`. The additional *ne_velocity* keyword sets the
 initial electron-number velocity (electron number per unit time); its
 default is zero.
 
@@ -35,11 +35,11 @@ Examples
 Description
 """""""""""
 
-``fix uvt`` performs classical molecular dynamics at constant chemical
-potential by adding one global electronic coordinate, ``Ne``, to the
+*fix uvt* performs classical molecular dynamics at constant chemical
+potential by adding one global electronic coordinate, *Ne*, to the
 standard Nose-Hoover NVT equations of motion.  The electronic coordinate
 is propagated with an extended-mass variable and is driven by
-``-dE/dN + mu``.
+*-dE/dN + mu*.
 
 A single Nose-Hoover chain thermostats the nuclear velocities and the
 electron-number velocity together.  The fix creates
@@ -54,7 +54,7 @@ temperature, independently of the thermostat chain length. Use::
 
    thermo_style custom step f_tp[1] temp f_tp[2]
 
-Here ``tp`` is the fix ID; the columns are timestep, electron number,
+Here *tp* is the fix ID; the columns are timestep, electron number,
 nuclear temperature, and combined temperature. No explicit temperature
 compute is required. The automatically created compute can alternatively
 be referenced as *c_fix-ID_temp*.  A temperature selected with *fix_modify temp*
@@ -62,22 +62,22 @@ must be a temp/uvt compute for this fix and group.  The usual
 :doc:`compute_modify <compute_modify>` DOF options can be applied to that
 compute; the nuclear DOF must remain positive.
 
-The ``dedn`` source may be an equal-style variable (``v_name``), a
-global compute (``c_ID``), or a global fix (``f_ID``).  If the source
+The *dedn* source may be an equal-style variable (*v_name*), a
+global compute (*c_ID*), or a global fix (*f_ID*).  If the source
 provides a global vector, an entry can be selected with the usual
-``[index]`` syntax.
+*[index]* syntax.
 
-The ``mu`` target is constant throughout a run. ``Udamp`` has time units
+The *mu* target is constant throughout a run. *Udamp* has time units
 and must be positive. Chemical-potential ramps are not supported.
 
 The global fix vector starts with six physical outputs:
 
-#. electron number ``Ne``
-#. combined instantaneous temperature ``T_ins``
-#. electron-number velocity ``Ne_dot``
-#. energy derivative ``dEdN``
+#. electron number *Ne*
+#. combined instantaneous temperature *T_ins*
+#. electron-number velocity *Ne_dot*
+#. energy derivative *dEdN*
 #. electronic kinetic energy
-#. electronic potential contribution ``-mu*Ne``
+#. electronic potential contribution *-mu*Ne*
 
 The same six quantities appear in the same order at entries 11 through 16
 of :doc:`fix pimd/uvt <fix_pimd_uvt>`, following its ten nuclear outputs.
@@ -90,7 +90,7 @@ not normalized by atom count.
 
 The fix writes restart data for the Nose-Hoover state and electronic
 degree of freedom, so simulations may be continued with
-:doc:`read_restart <read_restart>` followed by the same ``fix uvt``
+:doc:`read_restart <read_restart>` followed by the same *fix uvt*
 command.
 
 Restrictions
