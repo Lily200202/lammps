@@ -3,12 +3,14 @@
 fix uvt command
 ===============
 
+.. versionadded:: TBD
+
 Syntax
 """"""
 
 .. code-block:: LAMMPS
 
-   fix ID group-ID uvt temp Tstart Tstop Tdamp mu Mu Udamp tau_U ne Ne0 dedn source [keyword value ...]
+   fix ID group-ID uvt temp Tstart Tstop Tdamp mu Mu Udamp ne Ne0 dedn source [keyword value ...]
 
 * ID, group-ID are documented in :doc:`fix <fix>` command
 * ``temp`` values = Tstart Tstop Tdamp (temperature, temperature, and time units)
@@ -118,11 +120,9 @@ command.
 Compatibility
 """""""""""""
 
-Replace the legacy three-value ``mu Mustart Mustop Mudamp`` syntax with
-``mu Mu Udamp tau_U``. The target ``mu`` is no longer a vector output;
-electronic kinetic and potential energies are entries 5 and 6
-(previously 6 and 7). The Nose-Hoover entries start at 7, and ``Ne``
-remains entry 1.
+The target ``mu`` is a constant value and is no longer a vector output.
+Electronic kinetic and potential energies are entries 5 and 6, and the
+Nose-Hoover entries start at 7. The ``Ne`` output remains entry 1.
 
 Restrictions
 """"""""""""

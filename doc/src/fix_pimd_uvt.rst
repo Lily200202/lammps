@@ -3,12 +3,14 @@
 fix pimd/uvt command
 ====================
 
+.. versionadded:: TBD
+
 Syntax
 """"""
 
 .. code-block:: LAMMPS
 
-   fix ID group-ID pimd/uvt method nmpimd thermostat NHC temp T Tdamp tau_T mu Mu Udamp tau_U ne Ne0 dedn source [keyword value ...]
+   fix ID group-ID pimd/uvt method nmpimd thermostat NHC temp T Tdamp mu Mu Udamp ne Ne0 dedn source [keyword value ...]
 
 * ID, group-ID are documented in :doc:`fix <fix>` command
 * ``method`` value = ``nmpimd``
