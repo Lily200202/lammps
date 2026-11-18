@@ -182,7 +182,7 @@ parenthesis: g = GPU, i = INTEL, k = KOKKOS, o = OPENMP, t = OPT.
    * :doc:`phonon <fix_phonon>`
    * :doc:`pimd/nve <fix_pimd>`
    * :doc:`pimd/nvt <fix_pimd>`
-   * :doc:`pimd/uvt <fix_pimd_uvt>`
+   * :doc:`pimd/uvt <fix_pimd>`
    * :doc:`pimd/langevin <fix_pimd>`
    * :doc:`pimd/langevin/bosonic <fix_pimd>`
    * :doc:`pimd/nvt/bosonic <fix_pimd>`

@@ -57,7 +57,8 @@ temperature, independently of the thermostat chain length. Use::
 Here *tp* is the fix ID; the columns are timestep, electron number,
 nuclear temperature, and combined temperature. No explicit temperature
 compute is required. The automatically created compute can alternatively
-be referenced as *c_fix-ID_temp*.  A temperature selected with *fix_modify temp*
+be referenced as *c_ID_temp*, where *ID* is the fix ID. A temperature selected
+with *fix_modify temp*
 must be a temp/uvt compute for this fix and group.  The usual
 :doc:`compute_modify <compute_modify>` DOF options can be applied to that
 compute; the nuclear DOF must remain positive.
@@ -80,7 +81,7 @@ The global fix vector starts with six physical outputs:
 #. electronic potential contribution *-mu*Ne*
 
 The same six quantities appear in the same order at entries 11 through 16
-of :doc:`fix pimd/uvt <fix_pimd_uvt>`, following its ten nuclear outputs.
+of :doc:`fix pimd/uvt <fix_pimd>`, following its ten nuclear outputs.
 For PIMD, the derivative is reported separately for each bead.
 
 The regular Nose-Hoover vector follows, starting at entry 7. The total
@@ -107,5 +108,5 @@ the required :doc:`compute temp/uvt <compute_temp_uvt>`.  See the :doc:`Build pa
 Related commands
 """"""""""""""""
 
-:doc:`fix nvt <fix_nh>`, :doc:`fix pimd/uvt <fix_pimd_uvt>`,
+:doc:`fix nvt <fix_nh>`, :doc:`fix pimd/uvt <fix_pimd>`,
 :doc:`read_restart <read_restart>`
