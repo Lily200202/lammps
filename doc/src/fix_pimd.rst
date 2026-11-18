@@ -534,7 +534,7 @@ Fix *pimd/uvt* writes the nuclear thermostat state and electronic
 degree of freedom to :doc:`binary restart files <restart>`.
 
 None of the :doc:`fix_modify <fix_modify>` options are relevant to fix
-pimd/nvt.
+pimd/nvt or fix *pimd/uvt*.
 
 Fix *pimd/nve* and fix *pimd/nvt* compute a global vector, which can be accessed by
 various :doc:`output commands <Howto_output>`.  The first 10 quantities
@@ -659,10 +659,10 @@ contribution of the :math:`P-1` interior springs is printed to the other
 :math:`\frac{PdN}{2 \beta}` (with :math:`d` being the dimensionality) is
 equally divided over log files.
 
-No parameter of fix *pimd/nvt* or *pimd/langevin* can be used with the
-*start/stop* keywords of the :doc:`run <run>` command.  Fix *pimd/nvt*
-or *pimd/langevin* is not invoked during :doc:`energy minimization
-<minimize>`.
+No parameter of fix *pimd/nvt*, *pimd/langevin*, or *pimd/uvt* can be
+used with the *start/stop* keywords of the :doc:`run <run>` command.  Fix
+*pimd/nvt*, *pimd/langevin*, and *pimd/uvt* are not invoked during
+:doc:`energy minimization <minimize>`.
 
 Restrictions
 """"""""""""
