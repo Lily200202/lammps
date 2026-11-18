@@ -551,9 +551,9 @@ are the shared path-integral energy and estimator outputs:
    #. molecular-dynamics pressure estimator,
    #. centroid-virial pressure estimator.
 
-These entries are followed by ``4*tchain`` Nose-Hoover thermostat-chain
-entries: the ``eta`` values, the ``eta_dot`` values, the thermostat
-potential contributions, and the thermostat kinetic contributions.
+These entries are followed by four sets of *tchain* Nose-Hoover
+thermostat-chain entries: the *eta* values, the *eta_dot* values, the
+thermostat potential contributions, and the thermostat kinetic contributions.
 
 Fix *pimd/nvt/bosonic* uses the shared *pimd/nvt* global-vector layout
 and replaces the distinguishable-particle spring energy and primitive
