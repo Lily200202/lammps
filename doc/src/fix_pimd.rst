@@ -728,9 +728,11 @@ method = nmpimd, ensemble = nvt, fmmode = physical, fmass = 1.0, scale =
 1, temp = 298.15, thermostat = PILE_L, tau = 1.0, iso = 1.0, taup = 1.0,
 barostat = BZP, fixcom = yes, and sp = 1.0 for all its arguments.
 
-The keyword defaults for fix *pimd/uvt* are method = nmpimd and
-thermostat = NHC.  The *temp*, *Tdamp*, *mu*, *Udamp*, *ne*, and *dedn*
-keywords must be specified.
+The keyword defaults for fix *pimd/uvt* are method = nmpimd,
+integrator = obabo, fmmode = physical, fmass = 1.0, sp = 1.0,
+temp = 298.15, tchain = 3, tloop = 1, drag = 0.0, and removecom = yes.
+The *thermostat* keyword is set to *NHC*.  The *Tdamp*, *mu*, *Udamp*,
+*ne*, and *dedn* keywords must be specified.
 
 .. _Feynman:
 

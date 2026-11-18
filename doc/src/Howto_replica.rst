@@ -22,7 +22,7 @@ These are the relevant commands:
 NEB is a method for finding transition states and barrier potential energies.
 HD, PRD, and TAD are methods for performing accelerated dynamics to find and
 perform infrequent events.  Parallel tempering or replica exchange runs
-different replicas at a series of temperatures to facilitate rare-event
+different replicas at a series of temperature to facilitate rare-event
 sampling.  PIMD runs different replicas whose individual particles in different
 replicas are coupled together by springs to model a system of ring-polymers which
 can represent the quantum nature of atom cores.
