@@ -114,8 +114,7 @@ Syntax
      *mu* value = chemical potential
      *Udamp* value = electronic damping time (time units)
      *ne* value = initial electron number
-     *dedn* value = energy derivative with respect to electron number
-     *source* value = equal-style variable, global compute, or global fix
+     *dedn* value = equal-style variable, global compute, or global fix providing dE/dN
      *ne_velocity* value = initial electron-number velocity (electron number per time)
 
   Optional keywords include *integrator*, *drag*, *fmass*, *fmmode*, *sp*,
@@ -145,7 +144,8 @@ Launch the input file with two bead partitions using:
 
    mpirun -np 2 lmp -partition 2x1 -in in.electron_pimd_uvt
 
-Example input files are provided in the examples/PACKAGES/pimd and examples/PACKAGES/pimd_bosonic directories.
+Example input files are provided in the examples/PACKAGES/pimd,
+examples/PACKAGES/pimd_bosonic, and examples/PACKAGES/uvt directories.
 
 Description
 """""""""""
