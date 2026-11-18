@@ -116,7 +116,8 @@ support :doc:`fix dt/reset <fix_dt_reset>`.
 
 This fix currently supports only 3d systems.
 
-This fix requires an atom map, e.g. ``atom_modify map yes``, and consecutive atom IDs.
+This fix requires an atom map and consecutive atom IDs.  Use the
+:doc:`atom_modify map <atom_modify>` command to create an atom map.
 All bead partitions must use the same number of processors.
 
 The bead count equals the number of LAMMPS partitions.
