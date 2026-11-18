@@ -1,17 +1,17 @@
-.. index:: fix pimd/langevin
 .. index:: fix pimd/nve
 .. index:: fix pimd/nvt
+.. index:: fix pimd/langevin
 .. index:: fix pimd/langevin/bosonic
 .. index:: fix pimd/nvt/bosonic
-
-fix pimd/langevin command
-=========================
 
 fix pimd/nve command
 ====================
 
 fix pimd/nvt command
 ====================
+
+fix pimd/langevin command
+=========================
 
 fix pimd/langevin/bosonic command
 =================================
