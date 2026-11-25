@@ -39,7 +39,7 @@ Description
 potential by adding one global electronic coordinate, *Ne*, to the
 standard Nose-Hoover NVT equations of motion.  The electronic coordinate
 is propagated with an extended-mass variable and is driven by
-*-dE/dN + mu*.  The method is described in :ref:`(Fu) <uvt-Fu2026>`.
+*-dE/dN + mu*.  The method is described in :ref:`(Fu2026) <uvt-Fu2026>`.
 
 A single Nose-Hoover chain thermostats the nuclear velocities and the
 electron-number velocity together.  The fix creates
@@ -115,6 +115,6 @@ Related commands
 
 .. _uvt-Fu2026:
 
-**(Fu)** L. Fu, Y. Li, and S. Xu, "fix uvt and fix pimd/uvt: A unified
+**(Fu2026)** L. Fu, Y. Li, and S. Xu, "fix uvt and fix pimd/uvt: A unified
 LAMMPS framework for constant-potential constant-temperature molecular
 dynamics," arXiv:2609.21935 (2026).
