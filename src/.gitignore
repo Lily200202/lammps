@@ -820,6 +820,8 @@
 /compute_temp_region_eff.h
 /compute_temp_rotate.cpp
 /compute_temp_rotate.h
+/compute_temp_uvt.cpp
+/compute_temp_uvt.h
 /compute_ti.cpp
 /compute_ti.h
 /compute_viscosity_cos.cpp

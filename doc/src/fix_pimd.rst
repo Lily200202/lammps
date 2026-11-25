@@ -160,6 +160,10 @@ zero-point motion.  In this formalism, the isomorphism of a quantum
 partition function for the original system to a classical partition
 function for a ring-polymer system is exploited, to efficiently sample
 configurations from the canonical ensemble :ref:`(Feynman) <Feynman>`.
+The implementation of fix *pimd/langevin* and the shared code of fix
+*pimd/nve*, *pimd/nvt*, and *pimd/uvt* are described in
+:ref:`(Li) <pimd-Li2026>`; fix *pimd/uvt* and the restructured fix
+*pimd/nve* base are described in :ref:`(Fu) <pimd-Fu2026>`.
 
 .. versionadded:: 2Apr2025
 
@@ -804,3 +808,16 @@ Path Integrals, McGraw-Hill, New York (1965).
 .. _HigerFeldman:
 
 **(Higer)** J. Higer, Y. M. Y. Feldman, and B. Hirshberg, "Periodic Boundary Conditions for Bosonic Path Integral Molecular Dynamics," J. Chem. Phys. 163, 024101 (2025)
+
+.. _pimd-Li2026:
+
+**(Li)** Y. Li, A. Gomez, K. Cai, C. Zhang, L. Fu, W. Jia, Y. M. Y. Feldman,
+O. Blumer, J. Higer, B. Hirshberg, S. Xu, A. Kohlmeyer, and R. Car,
+"fix pimd/langevin: An efficient implementation of path integral molecular
+dynamics in LAMMPS," J. Chem. Phys. 164, 144119 (2026).
+
+.. _pimd-Fu2026:
+
+**(Fu)** L. Fu, Y. Li, and S. Xu, "fix uvt and fix pimd/uvt: A unified
+LAMMPS framework for constant-potential constant-temperature molecular
+dynamics," arXiv:2609.21935 (2026).
